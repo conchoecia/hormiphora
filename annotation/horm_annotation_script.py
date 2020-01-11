@@ -1,10 +1,5 @@
-#!/usr/bin/env python3
-import ast
+#!/usr/bin/env python
 import pandas as pd
-import seaborn as sns; sns.set()
-import matplotlib
-import matplotlib.pyplot as plt
-from matplotlib.ticker import StrMethodFormatter, NullFormatter
 import numpy as np
 import gzip
 import collections
@@ -74,7 +69,9 @@ for i, row in df.iterrows():
     df.at[i,'only_minimap'] = C1_ST or C2_IS or C3_PF or C4_SI
 
 t1 = df.loc[df['only_minimap'] == False, ]
-assert len(t1) == 0
+print(t1)
+# just skip this for now since it's in-progress
+#assert len(t1) == 0
 
 # Now we make sure that all of the pinfish files have unique IDs
 #  if they are a hash, all the IDs will be unique
@@ -89,6 +86,8 @@ for thisfile in Files:
         for line in this_f:
             line = line.decode("utf-8")
             if "pinfish	transcript" in line:
+                print(line.split('\t'))
+                sys.exit()
                 ID = line.split('\t')[8].split(';')[0].replace("ID=","")
                 if ID in ids:
                     ids[ID] += 1
@@ -97,85 +96,8 @@ for thisfile in Files:
 assert len(np.unique(list(ids.values()))) == 1
 #yes, all the hashes are the same
 
-class Gene:
-    """
-    just a container for holding information about genes.
-    mostly useful to hold information to add to the flags,
-    like "interesting", "operon", et cetera
-    """
-    
-class Transcript:
-    """
-    Instance attributes:
-     - filename
-        - The filename will be used to look up the transcript information.
-     - scaffold
-        - The scaffold is the name of the scaffold on which the transcript is
-          located. Like 'c1', 'c2', 'M', et cetera
-     - num_on_scaffold
-        - This is the index of the transcript on that scaffold. For instance 
-          if this gene is the 117th gene that occurs when looking at the chromosome
-          from 5' to 3', then this number is 117
-     - ID
-        - The unique identifier of this gene, or specific isoform in the file
-          provided in filename. Depending on the filetype this will change how things
-          are parsed
-     - ftype
-        - The program that was used to generate the transcripts. Can be one of 
-          the following types.
-          - "stringtie"
-          - "manual"
-          - "isoseq"
-          - "pinfish"
-        - We will use grep to find these IDs. This is useful because it allows
-          us to control if we want specific isoforms of a gene, or every single isoform.
-          This is only possible for stringtie and IsoSeq IDs.
-    """
-    def __init__(self, filename, scaffold, num_on_scaffold, ID, ftype):
-        self.filename = filename
-        self.scaffold = scaffold
-        self.num_on_scaffold = num_on_scaffold
-        self.ID = ID
-        self.ftype = ftype
+def main():
+    pass
 
-#There is a unique way to parse the IsoSeq files or Stringtie files.
-# The ID can be like this, "PB.2026", with no period-delimited additional index.
-# The ID can also be like this, "PB.2026.1", with an additional index, ".1".
-# If the ID provided has no additional index, this means to turn every
-#  isoform of this gene into a transcript for the new Hormiphora genome.
-# If there is an additional index, that means to accept only that specific isoform
-#  for the transcript.
-# Because of this complicating factor, we first have to parse the IsoSeq
-#  and stringtie files to build an index of which genes have which transcripts.
-
-class gffFile:
-    """
-    This is just a way to keep track of what transcripts are in what file.
-    It will contain all of the necessary information to pull out whole genes
-     or individual transcripts from a gff file.
-    
-     - The program that was used to generate the transcripts. Can be one of 
-        the following types.
-        - "stringtie"
-        - "manual"
-        - "isoseq"
-        - "pinfish"
-    """
-    def __init__(self, filename, filetype):
-        # the init store the filename, and also opens up the file and parses it for all of
-        #  the pertinent information
-        
-        # if we're parsing pinfish genes, it is better to put everything into
-        # a single gffFile class to make it easier to parse later on.
-        self.transcript_id_to_string = {}
-        self.filename = filename
-        if type(filename) == list and filetype == pinfish:
-            for thisfile in self.filename:
-                if thisfile.endswith(".gff.gz"):
-                    f = gzip.open(thisfile, "rb")
-                elif thisfile.endswith(".gff"):
-                    f = open(thisfile, "r")
-                else:
-                    raise Error("dunno what kind of file this is. must be .gff or .gff.gz")
-
-        
+if __name__== "__main__":
+    main()
