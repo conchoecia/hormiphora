@@ -4,14 +4,25 @@ import gzip
 import sys
 import transcript_classes as tc
 
+def parse_file_keyword(thisfile, keyword):
+    # now get all of the transcripts
+    print("parsing {}".format(keyword), file=sys.stderr)
+    return_me = tc.gffFile(thisfile, keyword)
+    print("  - found {} genes encompassing {} isoforms".format(
+         len(return_me.GTT), sum([len(return_me.GTT[key]) for key in return_me.GTT])),
+          file=sys.stderr)
+    return(return_me)
+
 def main():
-    annotation_spreadsheet = "raw_files/Hcal_annotation_v5.csv"
+    annotation_spreadsheet = "raw_files/Hcal_annotation_v49.csv"
     pinfish_files = ["raw_files/UCSC_Hcal_v1_B1_LR.pinfish_clusters.gff.gz",
                      "raw_files/UCSC_Hcal_v1_B1_LR.pinfish_clusters_c7p10.gff.gz",
                      "raw_files/UCSC_Hcal_v1_B1_LR.pinfish_clusters_c2p20.gff.gz"]
     stringtie = ["raw_files/UCSC_Hcal_v1_B1_LR.stringtie_f01.gff.gz"]
+    augustus  = ["raw_files/manual_annot_g26892.gff"]
     isoseq_hq = ["raw_files/GLO64_isoseq.collapsed.filtered.gff.gz"]
     isoseq_singletons = ["raw_files/GLO64_singletons.collapsed.gff.gz"]
+    stringtie_manual  = ["raw_files/manual_annot_B1_LR.9505.gff"]
     # Now we make sure that all of the pinfish files have unique IDs
     #  if they are a hash, all the IDs will be unique
 
@@ -19,19 +30,43 @@ def main():
     df = pd.read_csv(annotation_spreadsheet, header=0, sep=',')
     #First make sure that someone has checked the gene
     df = tc.sumone_has_checked(df)
+    # now make sure that each transcript has a sensible chromosome
+    chr_list = ["c{}".format(i) for i in range(1,14)] + ["sca{}".format(i) for i in range(1,33)] + ["M"]
+    indices = tc.sensible_chromosomes(df, chr_list)
+    if len(indices) != 0:
+        print("some of the rows didn't have a chromosomes", file=sys.stderr)
+        print(indices, file=sys.stderr)
+        raise Exception("missing chromosomes in rows")
     # now make sure that each row has something (a gene/transcript)
     df = tc.each_row_has_something(df)
-    print(df.columns)
+    print(df.columns, file=sys.stderr)
     # now make sure that there are no more genes that still need a transcript,
     #  but that have a minimap ID
     tc.still_needs_transcript(df)
+    # now make sure that there are no rows that have no stringtie but have a delete
+    indices = tc.delete_but_no_stringtie(df)
+    if len(indices) != 0:
+        print("some of the rows had no stringtie, but are marked for deletion", file=sys.stderr)
+        print(indices, file=sys.stderr)
+        raise Exception("marked for deletion but missing stringtie")
+
+
+    # PASSED CHECKS. NOW ANNOTATE.
     # make a dict to store the GFF files
     GFFs = {}
     # now get all of the transcripts
-    GFFs["pinfish"] = tc.gffFile(pinfish_files, "pinfish")
-    GFFs["stringtie"] = tc.gffFile(stringtie, "stringtie")
-    GFFs["isoseq_hq"] = tc.gffFile(isoseq_hq, "isoseq_hq")
-    GFFs["isoseq_singletons"] = tc.gffFile(isoseq_singletons, "isoseq_singletons")
+    parse_these = {"pinfish": pinfish_files,
+                   "stringtie": stringtie,
+                   "isoseq_hq": isoseq_hq,
+                   "isoseq_singletons": isoseq_singletons,
+                   "augustus": augustus,
+                   "stringtie_manual": stringtie_manual
+                  }
+
+    for key in parse_these:
+        keyword = key
+        filelist = parse_these[key]
+        GFFs[keyword] = parse_file_keyword(filelist, keyword)
 
     # now parse the spreadsheet and print out new transcripts using the GFFs dict
 #ndex(['chromosome', 'stringtie_id', 'DTS_checked', 'spliced_in_intron',
@@ -41,9 +76,11 @@ def main():
     column_name_to_GFF_map = {"stringtie_id": "stringtie",
                               "isoseq_hq_id": "isoseq_hq",
                               "isoseq_singleton_id": "isoseq_singletons",
-                              "pinfish_id": "pinfish"
+                              "pinfish_id": "pinfish",
+                              "augustus": "augustus",
+                              "stringtie_manual": "stringtie_manual"
                               }
-    parse_spreadsheet(df, GFFs, colum_name_to_GFF_map)
+    tc.parse_spreadsheet(df, GFFs, column_name_to_GFF_map)
 
 if __name__== "__main__":
     main()
