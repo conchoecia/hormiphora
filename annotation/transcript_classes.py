@@ -1,7 +1,5 @@
 #!/usr/bin/env python
-
 import gzip
-
 
 # I don't think I will actually use this
 #class Transcript:
@@ -188,6 +186,69 @@ class gffFile:
                             transcript before we found the transcript itself.
                             The GFF file should have all of the transcripts first.""")
                         self.IDTS[tID] += nl
+
+def DoL_empty(DoL):
+    """
+    checks if a dictionary of lists (DoL) is empty.
+    For example
+     { key: [], key2: []} is empty
+     { key: [1,2], key2: []} is not
+
+    Returns True if empty, false if there is something in the DoL
+    """
+    for key in DoL:
+        if len(DoL[key]) > 0:
+            return False
+    return True
+
+def parse_spreadsheet(df, GFFs, CTGm):
+    """Go through the spreadsheet,
+      one row at a time, and construct transcripts
+    """
+    this_chromosome = ""
+    transcript_counter = ""
+    isoform_counter = 0
+    for i, row in df.iterrows():
+        #first, determine which chromosome we are on, and what transcript
+        row_chr = str(row["chromosome"])
+        if row_chr != this_chromosome:
+            #we have either just started, or transitioned to a new chromosome
+            this_chromosome = row_chr
+            transcript_counter = 1
+
+        #NOW WE PARSE THE ROW - EACH ROW IS A GENE
+        # first we check if this row has a delete flag or not.
+
+        # we have flagged it for deletion
+        # if there is nothing else in all the columns aside from stringtie,
+        #  then just skip this. Darrin probably made this row.
+        #  The annotation pattern for the first four chromosomes was to
+        #  mark the row for deletion if the stringtie model was bad, then
+        #  insert a new row below and use the correct model. WRF put the
+        # correct model on the same line, then DTS started doing that on
+        # chrs c5 and c6. Hence the special parsing.
+
+        #there is either a stringtie ID, or there is not one.
+        transcripts_in_this_gene = {key: [] for key in CTGm}
+        for key in CTGm:
+            if key == "stringtie_id"
+            if not pd.isnull(row[key]):
+                # we have found a gene for this GFF file
+                splitd = str(row[key]).split(",")
+                for tx in splitd:
+                transcripts_in_this_gene[key].append(tx.strip)
+        if not DoL_empty(transcripts_in_this_gene):
+            #there are some transcripts here. add them to the gene
+        else:
+            # there is nothing here. there must be a minimap transcript
+            pass
+        #C1 = False
+        #C2 = False
+        #if type(row["DTS_checked"]) == str:
+        #    C1 = row["DTS_checked"].strip().lower() in ['y', 'yes']
+        #if type(row["WRF_checked"]) == str:
+        #    C2 = row["WRF_checked"].strip().lower() in ['y', 'yes']
+        #df.at[i,'checked'] = C1 or C2
 
 def sumone_has_checked(df):
     df["checked"] = "none"

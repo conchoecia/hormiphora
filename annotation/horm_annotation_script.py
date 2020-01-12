@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 import pandas as pd
-import numpy as np
 import gzip
-import collections
+import sys
 import transcript_classes as tc
 
 def main():
@@ -22,6 +21,7 @@ def main():
     df = tc.sumone_has_checked(df)
     # now make sure that each row has something (a gene/transcript)
     df = tc.each_row_has_something(df)
+    print(df.columns)
     # now make sure that there are no more genes that still need a transcript,
     #  but that have a minimap ID
     tc.still_needs_transcript(df)
@@ -34,8 +34,16 @@ def main():
     GFFs["isoseq_singletons"] = tc.gffFile(isoseq_singletons, "isoseq_singletons")
 
     # now parse the spreadsheet and print out new transcripts using the GFFs dict
-
-
+#ndex(['chromosome', 'stringtie_id', 'DTS_checked', 'spliced_in_intron',
+#             'WRF_checked', 'isoseq_hq_id', 'pinfish_id', 'isoseq_singleton_id',
+#             'remove_st', 'interesting', 'comment', 'time', 'Unnamed: 12', 'checked',
+#             'one_row_one_gene'],
+    column_name_to_GFF_map = {"stringtie_id": "stringtie",
+                              "isoseq_hq_id": "isoseq_hq",
+                              "isoseq_singleton_id": "isoseq_singletons",
+                              "pinfish_id": "pinfish"
+                              }
+    parse_spreadsheet(df, GFFs, colum_name_to_GFF_map)
 
 if __name__== "__main__":
     main()
