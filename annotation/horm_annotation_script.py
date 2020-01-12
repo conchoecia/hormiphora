@@ -10,6 +10,9 @@ def main():
     pinfish_files = ["raw_files/UCSC_Hcal_v1_B1_LR.pinfish_clusters.gff.gz",
                      "raw_files/UCSC_Hcal_v1_B1_LR.pinfish_clusters_c7p10.gff.gz",
                      "raw_files/UCSC_Hcal_v1_B1_LR.pinfish_clusters_c2p20.gff.gz"]
+    stringtie = ["raw_files/UCSC_Hcal_v1_B1_LR.stringtie_f01.gff.gz"]
+    isoseq_hq = ["raw_files/GLO64_isoseq.collapsed.filtered.gff.gz"]
+    isoseq_singletons = ["raw_files/GLO64_singletons.collapsed.gff.gz"]
     # Now we make sure that all of the pinfish files have unique IDs
     #  if they are a hash, all the IDs will be unique
 
@@ -24,8 +27,15 @@ def main():
     tc.still_needs_transcript(df)
     # make a dict to store the GFF files
     GFFs = {}
+    # now get all of the transcripts
     GFFs["pinfish"] = tc.gffFile(pinfish_files, "pinfish")
-    print(GFFs["pinfish"].IDTS)
+    GFFs["stringtie"] = tc.gffFile(stringtie, "stringtie")
+    GFFs["isoseq_hq"] = tc.gffFile(isoseq_hq, "isoseq_hq")
+    GFFs["isoseq_singletons"] = tc.gffFile(isoseq_singletons, "isoseq_singletons")
+
+    # now parse the spreadsheet and print out new transcripts using the GFFs dict
+
+
 
 if __name__== "__main__":
     main()

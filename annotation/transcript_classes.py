@@ -2,46 +2,41 @@
 
 import gzip
 
-class Gene:
-    """
-    just a container for holding information about genes.
-    mostly useful to hold information to add to the flags,
-    like "interesting", "operon", et cetera
-    """
 
-class Transcript:
-    """
-    Instance attributes:
-     - filename
-        - The filename will be used to look up the transcript information.
-     - scaffold
-        - The scaffold is the name of the scaffold on which the transcript is
-          located. Like 'c1', 'c2', 'M', et cetera
-     - num_on_scaffold
-        - This is the index of the transcript on that scaffold. For instance
-          if this gene is the 117th gene that occurs when looking at the chromosome
-          from 5' to 3', then this number is 117
-     - ID
-        - The unique identifier of this gene, or specific isoform in the file
-          provided in filename. Depending on the filetype this will change how things
-          are parsed
-     - ftype
-        - The program that was used to generate the transcripts. Can be one of
-          the following types.
-          - "stringtie"
-          - "manual"
-          - "isoseq"
-          - "pinfish"
-        - We will use grep to find these IDs. This is useful because it allows
-          us to control if we want specific isoforms of a gene, or every single isoform.
-          This is only possible for stringtie and IsoSeq IDs.
-    """
-    def __init__(self, filename, scaffold, num_on_scaffold, ID, ftype):
-        self.filename = filename
-        self.scaffold = scaffold
-        self.num_on_scaffold = num_on_scaffold
-        self.ID = ID
-        self.ftype = ftype
+# I don't think I will actually use this
+#class Transcript:
+#    """
+#    Instance attributes:
+#     - filename
+#        - The filename will be used to look up the transcript information.
+#     - scaffold
+#        - The scaffold is the name of the scaffold on which the transcript is
+#          located. Like 'c1', 'c2', 'M', et cetera
+#     - num_on_scaffold
+#        - This is the index of the transcript on that scaffold. For instance
+#          if this gene is the 117th gene that occurs when looking at the chromosome
+#          from 5' to 3', then this number is 117
+#     - ID
+#        - The unique identifier of this gene, or specific isoform in the file
+#          provided in filename. Depending on the filetype this will change how things
+#          are parsed
+#     - ftype
+#        - The program that was used to generate the transcripts. Can be one of
+#          the following types.
+#          - "stringtie"
+#          - "manual"
+#          - "isoseq"
+#          - "pinfish"
+#        - We will use grep to find these IDs. This is useful because it allows
+#          us to control if we want specific isoforms of a gene, or every single isoform.
+#          This is only possible for stringtie and IsoSeq IDs.
+#    """
+#    def __init__(self, filename, scaffold, num_on_scaffold, ID, ftype):
+#        self.filename = filename
+#        self.scaffold = scaffold
+#        self.num_on_scaffold = num_on_scaffold
+#        self.ID = ID
+#        self.ftype = ftype
 
 #There is a unique way to parse the IsoSeq files or Stringtie files.
 # The ID can be like this, "PB.2026", with no period-delimited additional index.
@@ -79,7 +74,10 @@ class gffFile:
         self.GTT  = {}
         self.filename = filename
         self.filetype = filetype
-        if type(filename) == list and self.filetype == "pinfish":
+        if type(filename) == str:
+            print(filename)
+            raise Exception("Files should be passed in a list.")
+        elif type(filename) == list:
             for thisfile in self.filename:
                 isgz = False
                 if thisfile.endswith(".gff.gz"):
