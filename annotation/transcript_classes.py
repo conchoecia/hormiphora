@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import gzip
+import os
 import pandas as pd
 import sys
 pd.options.display.width = 0
@@ -45,6 +46,8 @@ class gffFile:
             raise Exception("Files should be passed in a list.")
         elif type(filename) == list:
             for thisfile in self.filename:
+                if not os.path.exists(thisfile):
+                    raise IOError("file {} does not exist".format(thisfile))
                 isgz = False
                 if thisfile.endswith(".gff.gz"):
                     f = gzip.open(thisfile, "rb")
