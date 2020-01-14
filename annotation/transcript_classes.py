@@ -178,6 +178,7 @@ def parse_spreadsheet(df, GFFs, CTGm):
     """Go through the spreadsheet,
       one row at a time, and construct transcripts
     """
+    the_source = "Hcv1"
     this_chromosome = ""
     transcript_counter = ""
     isoform_counter = 0
@@ -224,6 +225,10 @@ def parse_spreadsheet(df, GFFs, CTGm):
             this_transcript = "Hcv1.1.{}.t{}".format(this_chromosome, transcript_counter)
             #add them to the gene and print
             isoform_counter = 1
+            print_buffer = ""
+            gene_coords = [-1, -1]
+            this_chr = ""
+            strand = ""
             for key in transcripts_in_this_gene:
                 for this_transcript_ID in transcripts_in_this_gene[key]:
                     #the transcript ID might be for a single isoform, or it might
@@ -261,6 +266,26 @@ def parse_spreadsheet(df, GFFs, CTGm):
                                 else:
                                     SII="n"
 
+                                #col0 sequence
+                                if this_chr == "":
+                                    this_chr = gff_split[0].strip()
+                                #col1 source
+                                gff_split[1] = the_source
+                                #col2 feature
+                                #col3 start
+                                if (int(gff_split[3]) < gene_coords[0]) or (gene_coords[0] == -1):
+                                    gene_coords[0] = int(gff_split[3])
+                                #col4 end
+                                if (int(gff_split[4]) < gene_coords[1]) or (gene_coords[1] == -1):
+                                    gene_coords[1] = int(gff_split[4])
+                                #col5 score
+                                gff_split[5] = "."
+                                #col6 strand
+                                if gff_split[6] == "":
+                                    strand = gff_split[6].strip()
+                                #col7 phase
+                                #col9 attribute
+
                                 #is the gene interesting
                                 INT=""
                                 if not pd.isnull(row["interesting"]):
@@ -272,7 +297,7 @@ def parse_spreadsheet(df, GFFs, CTGm):
                                 #print(gff_split)
                                 if str(gff_split[2]).strip() in ["transcript", "mRNA"]:
                                     gff_split[2] = "transcript"
-                                    comment="ID={0};Name={0}".format(this_isoform)
+                                    comment="ID={0};Parent={1};Origin={2}_{3}".format(this_isoform,this_transcript,key,this_transcript_ID)
                                 elif gff_split[2] == "exon":
                                     comment="ID={0}.e{1};Parent={0}".format(this_isoform,
                                              exon_counter)
@@ -285,8 +310,12 @@ def parse_spreadsheet(df, GFFs, CTGm):
                                 if INT=="y":
                                     comment += ";INT=y"
                                 gff_split[8] = comment
-                                print("\t".join(gff_split))
+                                print_buffer += "{}\n".format("\t".join(gff_split))
                         isoform_counter += 1
+            #now that we have looked at every isoform construct a gene line
+            gene = [this_chr, the_source, "gene", str(gene_coords[0]), str(gene_coords[1]), ".", strand, ".", "Name={}".format(this_transcript)]
+            print("\t".join(gene))
+            print(print_buffer)
 
 def sumone_has_checked(df):
     df["checked"] = "none"
