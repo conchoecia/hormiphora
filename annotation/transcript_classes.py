@@ -276,7 +276,7 @@ def parse_spreadsheet(df, GFFs, CTGm):
                                 if (int(gff_split[3]) < gene_coords[0]) or (gene_coords[0] == -1):
                                     gene_coords[0] = int(gff_split[3])
                                 #col4 end
-                                if (int(gff_split[4]) < gene_coords[1]) or (gene_coords[1] == -1):
+                                if (int(gff_split[4]) > gene_coords[1]) or (gene_coords[1] == -1):
                                     gene_coords[1] = int(gff_split[4])
                                 #col5 score
                                 gff_split[5] = "."
@@ -315,7 +315,7 @@ def parse_spreadsheet(df, GFFs, CTGm):
             #now that we have looked at every isoform construct a gene line
             gene = [this_chr, the_source, "gene", str(gene_coords[0]), str(gene_coords[1]), ".", strand, ".", "Name={}".format(this_transcript)]
             print("\t".join(gene))
-            print(print_buffer)
+            print(print_buffer, end="")
 
 def sumone_has_checked(df):
     df["checked"] = "none"
