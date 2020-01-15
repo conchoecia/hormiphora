@@ -222,7 +222,7 @@ def parse_spreadsheet(df, GFFs, CTGm):
         if not DoL_empty(transcripts_in_this_gene):
             #there are some transcripts here.
             transcript_counter += 1
-            this_transcript = "Hcv1.1.{}.t{}".format(this_chromosome, transcript_counter)
+            this_transcript = "Hcv1.1.{}.g{}".format(this_chromosome, transcript_counter)
             #add them to the gene and print
             isoform_counter = 1
             print_buffer = ""
@@ -297,9 +297,9 @@ def parse_spreadsheet(df, GFFs, CTGm):
                                 #print(gff_split)
                                 if str(gff_split[2]).strip() in ["transcript", "mRNA"]:
                                     gff_split[2] = "transcript"
-                                    comment="ID={0};Parent={1};Origin={2}_{3}".format(this_isoform,this_transcript,key,this_transcript_ID)
+                                    comment="ID={0};Parent={1};source_program={2};source_ID={3}".format(this_isoform,this_transcript,key,this_transcript_ID)
                                 elif gff_split[2] == "exon":
-                                    comment="ID={0}.e{1};Parent={0}".format(this_isoform,
+                                    comment="Parent={0}".format(this_isoform,
                                              exon_counter)
                                     exon_counter += 1
                                 else:
@@ -313,7 +313,10 @@ def parse_spreadsheet(df, GFFs, CTGm):
                                 print_buffer += "{}\n".format("\t".join(gff_split))
                         isoform_counter += 1
             #now that we have looked at every isoform construct a gene line
-            gene = [this_chr, the_source, "gene", str(gene_coords[0]), str(gene_coords[1]), ".", strand, ".", "Name={}".format(this_transcript)]
+            gene = [this_chr, the_source, "gene", str(gene_coords[0]),
+                    str(gene_coords[1]), ".",
+                    strand, ".",
+                    "ID={0};Name={0}".format(this_transcript)]
             print("\t".join(gene))
             print(print_buffer, end="")
 
