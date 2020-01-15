@@ -14,7 +14,7 @@ def parse_file_keyword(thisfile, keyword):
     return(return_me)
 
 def main():
-    annotation_spreadsheet = "raw_files/Hcal_annotation_v49.csv"
+    annotation_spreadsheet = "raw_files/Hcal_annotation_v50.csv"
     pinfish_files = ["raw_files/UCSC_Hcal_v1_B1_LR.pinfish_clusters.gff.gz",
                      "raw_files/UCSC_Hcal_v1_B1_LR.pinfish_clusters_c7p10.gff.gz",
                      "raw_files/UCSC_Hcal_v1_B1_LR.pinfish_clusters_c2p20.gff.gz"]
@@ -39,7 +39,7 @@ def main():
         raise Exception("missing chromosomes in rows")
     # now make sure that each row has something (a gene/transcript)
     df = tc.each_row_has_something(df)
-    print(df.columns, file=sys.stderr)
+    #print(df.columns, file=sys.stderr)
     # now make sure that there are no more genes that still need a transcript,
     #  but that have a minimap ID
     tc.still_needs_transcript(df)
@@ -67,6 +67,9 @@ def main():
         keyword = key
         filelist = parse_these[key]
         GFFs[keyword] = parse_file_keyword(filelist, keyword)
+        #if key == "augustus":
+        #    print(GFFs["augustus"].IDTS, file=sys.stderr)
+        #    print(GFFs["augustus"].GTT, file=sys.stderr)
 
     # now parse the spreadsheet and print out new transcripts using the GFFs dict
 #ndex(['chromosome', 'stringtie_id', 'DTS_checked', 'spliced_in_intron',

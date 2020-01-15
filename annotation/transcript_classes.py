@@ -223,12 +223,34 @@ def parse_spreadsheet(df, GFFs, CTGm):
             #there are some transcripts here.
             transcript_counter += 1
             this_transcript = "Hcv1.1.{}.g{}".format(this_chromosome, transcript_counter)
+
+            # look for "FORWARD STRAND" and "REVERSE STRAND" to override
+            #  the strand for everything
+            strand_override = False
+            CATCH_EM_ALL = ["FORWARD STRAND", "REVERSE STRAND"]
+            strand = ""
+            for this_one in CATCH_EM_ALL:
+                if this_one in str(row["comment"]).strip():
+                    matching_cases = 0
+                    if "FORWARD" in str(row["comment"]).strip():
+                        strand = "+"
+                        matching_cases += 1
+                    if "REVERSE" in str(row["comment"]).strip():
+                        strand = "-"
+                        matching_cases += 1
+                    #check if something weird happened
+                    if matching_cases == 0:
+                        raise Exception("""We shouldn't have found a 0 here.
+                        Consult your local programmer to debug.""")
+                    if matching_cases > 1:
+                        raise Exception("""Matched to multiple cases for strand.
+                        This shouldn'ta happened. You comment should either
+                        contain FORWARD STRAND or contain REVERSE STRAND.""")
             #add them to the gene and print
             isoform_counter = 1
             print_buffer = ""
             gene_coords = [-1, -1]
             this_chr = ""
-            strand = ""
             for key in transcripts_in_this_gene:
                 for this_transcript_ID in transcripts_in_this_gene[key]:
                     #the transcript ID might be for a single isoform, or it might
@@ -282,7 +304,12 @@ def parse_spreadsheet(df, GFFs, CTGm):
                                 gff_split[5] = "."
                                 #col6 strand
                                 if strand == "":
+                                    # take the first strand value if we haven't
+                                    #  seen it yet
                                     strand = gff_split[6].strip()
+                                # seems redundant but important for overriding strand
+                                #  when necessary
+                                gff_split[6] = strand
                                 #col7 phase
                                 #col9 attribute
 
@@ -292,7 +319,6 @@ def parse_spreadsheet(df, GFFs, CTGm):
                                     INT="y"
                                 else:
                                     INT="n"
-
                                 #print("GFFSPLIT")
                                 #print(gff_split)
                                 if str(gff_split[2]).strip() in ["transcript", "mRNA"]:
