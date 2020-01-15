@@ -281,7 +281,7 @@ def parse_spreadsheet(df, GFFs, CTGm):
                                 #col5 score
                                 gff_split[5] = "."
                                 #col6 strand
-                                if gff_split[6] == "":
+                                if strand == "":
                                     strand = gff_split[6].strip()
                                 #col7 phase
                                 #col9 attribute
