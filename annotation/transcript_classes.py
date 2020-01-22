@@ -177,6 +177,11 @@ def DoL_empty(DoL):
 def parse_spreadsheet(df, GFFs, CTGm):
     """Go through the spreadsheet,
       one row at a time, and construct transcripts
+
+    GFFs are the GFF file objects as a dict with a lookup key
+      and a value of the GFF object
+
+    CTGm is the column_name_to_GFF_map
     """
     the_source = "Hcv1"
     this_chromosome = ""
@@ -204,13 +209,12 @@ def parse_spreadsheet(df, GFFs, CTGm):
 
         #there is either a stringtie ID, or there is not one.
         transcripts_in_this_gene = {CTGm[key]: [] for key in CTGm}
+        # look in every single possible place we may have drawn a transcript from
         for key in CTGm:
             skip = False
             if key == "stringtie_id":
-                if str(row["remove_st"]).lower() in ["y", "yes"]:
+                if str(row["remove_st"]).strip().lower() in ["y", "yes"]:
                     skip = True
-                    if "B1_LR" not in str(row["stringtie_id"]):
-                        print("rejecting: ", row["stringtie_id"], file=sys.stderr)
             if not skip and not pd.isnull(row[key]):
                 # we have found a gene for this GFF file
                 splitd = str(row[key]).split(",")
@@ -359,7 +363,9 @@ def sumone_has_checked(df):
         df.at[i,'checked'] = C1 or C2
     t1 = df.loc[df['checked'] == False, ]
     # program will crash if this fails
-    assert len(t1) == 0
+    if len(t1) != 0:
+        print(t1)
+        raise Exception("There are some genes that haven't been checked.")
 
     return(df)
 
@@ -391,11 +397,12 @@ def each_row_has_something(df):
     # don't count rows that also have isoseq reads containing ID m64069
     df["one_row_one_gene"] = "none"
     for i, row in df.iterrows():
-        C1_ST = False
-        C2_IS = False
-        C3_PF = False
-        C4_SI = False
-        C5_CO = False
+        C1_ST = False #stringtie
+        C2_IS = False # isoseq
+        C3_PF = False # pinfish
+        C4_SI = False # singletons
+        C5_CO = False # comment
+        C6_AU = False # augustus
         if type(row["stringtie_id"]) == str:
             C1_ST = row["stringtie_id"].strip().lower() != ""
         if type(row["isoseq_hq_id"]) == str:
@@ -404,12 +411,15 @@ def each_row_has_something(df):
             C3_PF = row["pinfish_id"].strip().lower() != ""
         if type(row["isoseq_singleton_id"]) == str:
             C4_SI = row["isoseq_singleton_id"].strip().lower() != ""
+        if type(row["augustus"]) == str:
+            C6_AU = row["augustus"].strip().lower() != ""
+
         if type(row["comment"]) == str:
             for this_thing in ["m64069", "manual", "augustus"]:
                 if this_thing in row["comment"].strip().lower():
                     C5_CO = True
 
-        df.at[i,'one_row_one_gene'] = C1_ST or C2_IS or C3_PF or C4_SI or C5_CO
+        df.at[i,'one_row_one_gene'] = C1_ST or C2_IS or C3_PF or C4_SI or C5_CO or C6_AU
 
     t1 = df.loc[df['one_row_one_gene'] == False, ]
     print(t1, file=sys.stderr)
