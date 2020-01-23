@@ -185,15 +185,17 @@ def parse_spreadsheet(df, GFFs, CTGm):
     """
     the_source = "Hcv1"
     this_chromosome = ""
-    transcript_counter = ""
+    gene_counter = ""
     isoform_counter = 0
+    # this is used to catch the error mode in which the isoform counter is not incrementing for each transcript
+    isoforms_printed = set()
     for i, row in df.iterrows():
         #first, determine which chromosome we are on, and what transcript
         row_chr = str(row["chromosome"])
         if row_chr != this_chromosome:
             #we have either just started, or transitioned to a new chromosome
             this_chromosome = row_chr
-            transcript_counter = 0
+            gene_counter = 0
 
         #NOW WE PARSE THE ROW - EACH ROW IS A GENE
         # first we check if this row has a delete flag or not.
@@ -208,7 +210,7 @@ def parse_spreadsheet(df, GFFs, CTGm):
         # chrs c5 and c6. Hence the special parsing.
 
         #there is either a stringtie ID, or there is not one.
-        transcripts_in_this_gene = {CTGm[key]: [] for key in CTGm}
+        isoforms_in_this_gene = {CTGm[key]: [] for key in CTGm}
         # look in every single possible place we may have drawn a transcript from
         for key in CTGm:
             skip = False
@@ -219,20 +221,21 @@ def parse_spreadsheet(df, GFFs, CTGm):
                 # we have found a gene for this GFF file
                 splitd = str(row[key]).split(",")
                 for tx in splitd:
-                    transcripts_in_this_gene[CTGm[key]].append(tx.strip())
-            if len(transcripts_in_this_gene[CTGm[key]]) ==  0:
-                transcripts_in_this_gene.pop(CTGm[key])
-        # we now have all the transcripts_in_this_gene. now print them out
-        if not DoL_empty(transcripts_in_this_gene):
+                    isoforms_in_this_gene[CTGm[key]].append(tx.strip())
+            if len(isoforms_in_this_gene[CTGm[key]]) ==  0:
+                isoforms_in_this_gene.pop(CTGm[key])
+        # we now have all the isoforms_in_this_gene. now print them out
+        if not DoL_empty(isoforms_in_this_gene):
             #there are some transcripts here.
-            transcript_counter += 1
-            this_transcript = "Hcv1.1.{}.g{}".format(this_chromosome, transcript_counter)
+            gene_counter += 1
+            isoform_counter = 1
+            this_gene = "Hcv1.1.{}.g{}".format(this_chromosome, gene_counter)
 
             # look for "FORWARD STRAND" and "REVERSE STRAND" to override
             #  the strand for everything
-            strand_override = False
             CATCH_EM_ALL = ["FORWARD STRAND", "REVERSE STRAND"]
             strand = ""
+            # this block sets
             for this_one in CATCH_EM_ALL:
                 if this_one in str(row["comment"]).strip():
                     matching_cases = 0
@@ -245,39 +248,42 @@ def parse_spreadsheet(df, GFFs, CTGm):
                     #check if something weird happened
                     if matching_cases == 0:
                         raise Exception("""We shouldn't have found a 0 here.
+                        This means the genes comment says this should be both
+                        forward strand and reverse strand.
                         Consult your local programmer to debug.""")
                     if matching_cases > 1:
                         raise Exception("""Matched to multiple cases for strand.
                         This shouldn'ta happened. You comment should either
                         contain FORWARD STRAND or contain REVERSE STRAND.""")
             #add them to the gene and print
-            isoform_counter = 1
             print_buffer = ""
             gene_coords = [-1, -1]
             this_chr = ""
-            for key in transcripts_in_this_gene:
-                for this_transcript_ID in transcripts_in_this_gene[key]:
-                    #the transcript ID might be for a single isoform, or it might
-                    #  be for a bunch of isoforms. To determine which, we will
-                    #  look in the GFF file's GTT instance attribute (Gene-to-transcript)
+            for key in isoforms_in_this_gene:
+                for this_isoform_ID in isoforms_in_this_gene[key]:
+                    # the transcript ID might be for a single isoform, or it might
+                    #   be for a bunch of isoforms. To determine which, we will
+                    #   look in the GFF file's GTT instance attribute
+                    #   (Gene-to-transcript)
                     look_these_up = []
-                    if this_transcript_ID in GFFs[key].GTT:
+                    if this_isoform_ID in GFFs[key].GTT:
                         #This is a gene and there are other transcripts to look up
-                        look_these_up = GFFs[key].GTT[this_transcript_ID]
-                    elif this_transcript_ID in GFFs[key].IDTS:
+                        look_these_up = GFFs[key].GTT[this_isoform_ID]
+                    elif this_isoform_ID in GFFs[key].IDTS:
                         #this is a single transcript that we're adding
-                        look_these_up = [this_transcript_ID]
+                        look_these_up = [this_isoform_ID]
                     else:
                         #We should have encountered something. Raise an error if
                         #  we didn't find it.
-                        print(transcripts_in_this_gene)
-                        print("We couldn't find: ", this_transcript_ID, " in ", key, file=sys.stderr)
+                        print(isoforms_in_this_gene, file=sys.stderr)
+                        print("We couldn't find: ", this_isoform_ID, " in ", key, file=sys.stderr)
                         raise Exception("Couldn't find the transcript in the GFF file object")
                     #now that we have a list of isoforms to add to this gene,
                     #  start printing things out
                     for lookup in look_these_up:
                         #HCv1.1.c1.0000
-                        this_isoform = "{}.i{}".format(this_transcript,isoform_counter) 
+                        this_isoform = "{}.i{}".format(this_gene,isoform_counter)
+                        isoform_counter += 1
                         iso_string = GFFs[key].IDTS[lookup]
                         lines_split = iso_string.split('\n')
                         # for now just print everything out
@@ -327,7 +333,13 @@ def parse_spreadsheet(df, GFFs, CTGm):
                                 #print(gff_split)
                                 if str(gff_split[2]).strip() in ["transcript", "mRNA"]:
                                     gff_split[2] = "transcript"
-                                    comment="ID={0};Parent={1};source_program={2};source_ID={3}".format(this_isoform,this_transcript,key,this_transcript_ID)
+                                    if this_isoform in isoforms_printed:
+                                        print(isoforms_in_this_gene,
+                                              file=sys.stderr)
+                                        raise Exception("We already printed the isoform {}".format(this_isoform))
+                                    else:
+                                        isoforms_printed.add(this_isoform)
+                                    comment="ID={0};Parent={1};source_program={2};source_ID={3}".format(this_isoform,this_gene,key,this_isoform_ID)
                                 elif gff_split[2] == "exon":
                                     comment="Parent={0}".format(this_isoform,
                                              exon_counter)
@@ -341,12 +353,11 @@ def parse_spreadsheet(df, GFFs, CTGm):
                                     comment += ";INT=y"
                                 gff_split[8] = comment
                                 print_buffer += "{}\n".format("\t".join(gff_split))
-                        isoform_counter += 1
             #now that we have looked at every isoform construct a gene line
             gene = [this_chr, the_source, "gene", str(gene_coords[0]),
                     str(gene_coords[1]), ".",
                     strand, ".",
-                    "ID={0};Name={0}".format(this_transcript)]
+                    "ID={0};Name={0}".format(this_gene)]
             print("\t".join(gene))
             print(print_buffer, end="")
 
