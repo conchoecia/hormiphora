@@ -68,7 +68,7 @@ class gffFile:
                     if str(splitd[2]).strip() in ["transcript", "mRNA"]:
                         # we have just found a new transcript.
                         # make sure that the input is legal
-                        if splitd[1] in  ["pinfish", "StringTie"]:
+                        if splitd[1] in  ["pinfish", "StringTie", "custom"]:
                             if not splitd[8].split(';')[0].startswith("ID="):
                                 # should start with ID=
                                 print(line, file=sys.stderr)
@@ -88,7 +88,7 @@ class gffFile:
                         if splitd[1] == "pinfish":
                             tID = splitd[8].split(';')[0].replace("ID=","").strip()
                             gID = tID
-                        elif splitd[1] in ["StringTie", "AUGUSTUS"]:
+                        elif splitd[1] in ["StringTie", "AUGUSTUS", "custom"]:
                             tID = splitd[8].split(';')[0].replace("ID=","").strip()
                             gID = ".".join(tID.split('.')[0:-1])
                         elif splitd[1] == "PacBio":
@@ -414,6 +414,7 @@ def each_row_has_something(df):
         C4_SI = False # singletons
         C5_CO = False # comment
         C6_AU = False # augustus
+        C7_SM = False # stringtie_manual
         if type(row["stringtie_id"]) == str:
             C1_ST = row["stringtie_id"].strip().lower() != ""
         if type(row["isoseq_hq_id"]) == str:
@@ -424,13 +425,15 @@ def each_row_has_something(df):
             C4_SI = row["isoseq_singleton_id"].strip().lower() != ""
         if type(row["augustus"]) == str:
             C6_AU = row["augustus"].strip().lower() != ""
+        if type(row["stringtie_manual"]) == str:
+            C7_SM = row["stringtie_manual"].strip().lower() != ""
 
         if type(row["comment"]) == str:
             for this_thing in ["m64069", "manual", "augustus"]:
                 if this_thing in row["comment"].strip().lower():
                     C5_CO = True
 
-        df.at[i,'one_row_one_gene'] = C1_ST or C2_IS or C3_PF or C4_SI or C5_CO or C6_AU
+        df.at[i,'one_row_one_gene'] = C1_ST or C2_IS or C3_PF or C4_SI or C5_CO or C6_AU or C7_SM
 
     t1 = df.loc[df['one_row_one_gene'] == False, ]
     print(t1, file=sys.stderr)
