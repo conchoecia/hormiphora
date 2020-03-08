@@ -33,14 +33,34 @@ RNAF     = "/bigdata/make_txomes/reads/CTE_Hormiphora_californensis_D914_T1_f.fa
 RNAR     = "/bigdata/make_txomes/reads/CTE_Hormiphora_californensis_D914_T1_r.fastq.gz"
 GVCF     = "/bigdata/user/darrin/hormiphora/phasing/attempt2/final_output/largest_blocks.hap.phased.VCF"
 
+#get the chromosome order in order to fuse the vcf file
+chroms = []
+with open(REF, "r") as f:
+    for line in f:
+        line = line.strip()
+        if line[0] == ">":
+            chroms.append(line.split()[0].replace(">", ""))
+
 rule all:
     input:
-        pass
+        "tempfiles/phased.vcf"
 
-rule gen_transcripts_from_gff:
+rule gen_temporary_vcf:
     input:
-        ref = REF
-        gff = GFF
+        vcfs = expand("../phasing/final_output/phased_by_chromosome/largest_blocks.hap.phased.{chrom}.vcf.gz", chrom = chroms),
+    output:
+        tempvcf = temp("tempfiles/phased.vcf")
+    shell:
+        """
+        bcftools merge -Ov --force-samples {input.vcfs} > {output.tempvcf}
+        """
+rule gen_temporary_ref:
+    input:
+
+#rule gen_transcripts_from_gff:
+#    input:
+#        ref = REF
+#        gff = GFF
  #### first generate a sequence for each isoform
  #gffread -w ${PREFIX}.transcripts.fasta -g ${REF} ${GFF}
  #bwa index ${PREFIX}.transcripts.fasta
@@ -146,54 +166,54 @@ rule gen_transcripts_from_gff:
  #done
 
  # merge the bams
- samtools merge -f phased_to_ref/phased_transcripts_to_ref.bam phased_to_ref/pilon_tx_1_to_ref.sorted.bam phased_to_ref/pilon_tx_2_to_ref.sorted.bam
- samtools index phased_to_ref/phased_transcripts_to_ref.bam
+ #samtools merge -f phased_to_ref/phased_transcripts_to_ref.bam phased_to_ref/pilon_tx_1_to_ref.sorted.bam phased_to_ref/pilon_tx_2_to_ref.sorted.bam
+ #samtools index phased_to_ref/phased_transcripts_to_ref.bam
 
- cp ${GVCF} temp_whole_genome.vcf
- bgzip -c temp_whole_genome.vcf > temp_whole_genome.vcf.gz
- tabix -p vcf temp_whole_genome.vcf.gz
+ #cp ${GVCF} temp_whole_genome.vcf
+ #bgzip -c temp_whole_genome.vcf > temp_whole_genome.vcf.gz
+ #tabix -p vcf temp_whole_genome.vcf.gz
 
- whatshap haplotag --ignore-read-groups -o phased_to_ref/all_transcripts_haplotag.bam \
-     --reference ${REF} temp_whole_genome.vcf.gz phased_to_ref/phased_transcripts_to_ref.bam
+ #whatshap haplotag --ignore-read-groups -o phased_to_ref/all_transcripts_haplotag.bam \
+ #    --reference ${REF} temp_whole_genome.vcf.gz phased_to_ref/phased_transcripts_to_ref.bam
 
- # now make a list of things that were phased
- samtools view phased_to_ref/all_transcripts_haplotag.bam | grep 'HP:i:1' | cut -f1 | sort | uniq | sort > phased_to_ref/haplotype0_transcript.list
- samtools view phased_to_ref/all_transcripts_haplotag.bam | grep 'HP:i:2' | cut -f1 | sort | uniq | sort > phased_to_ref/haplotype1_transcript.list
-
- # a list of transcripts that are shared by both haplotypes. Should be nothing
- comm -12 phased_to_ref/haplotype0_transcript.list phased_to_ref/haplotype1_transcript.list > phased_to_ref/transcripts_shared_by_both.list
-
- # need to make a python script to parse this
- # now get the transcripts that were able to be assigned uniquely to one haplotype or the other
- for INDEX in 0 1
- do
-     cat phased_to_ref/haplotype${INDEX}_transcript.list | \
-         python transcript_list_unique.py > phased_to_ref/tx_phased_to_h${INDEX}.list
- done
-
- # double check a list of transcripts that are shared by both haplotypes. Should be nothing
- comm -12 phased_to_ref/haplotype0_transcript.list phased_to_ref/haplotype1_transcript.list > phased_to_ref/transcripts_shared_by_both_2.list
-
- mkdir final_phased_transcripts
- # generate transcript-specific haplotypes
- for INDEX in 0 1
- do
-     OIND=1
-     seqtk subseq h${OIND}flnc_to_${PREFIX}h${OIND}.pilon/h${OIND}flnc_to_${PREFIX}h${OIND}.pilon.fasta phased_to_ref/tx_phased_to_h${INDEX}.list > final_phased_transcripts/tx_phased_to_h${INDEX}.fasta
-     seqtk subseq prottrans_predict/h${OIND}.prottrans.fasta phased_to_ref/tx_phased_to_h${INDEX}.list > final_phased_transcripts/tx_phased_to_h${INDEX}.pep
-     OIND=2
-     seqtk subseq h${OIND}flnc_to_${PREFIX}h${OIND}.pilon/h${OIND}flnc_to_${PREFIX}h${OIND}.pilon.fasta phased_to_ref/tx_phased_to_h${INDEX}.list >> final_phased_transcripts/tx_phased_to_h${INDEX}.fasta
-     seqtk subseq prottrans_predict/h${OIND}.prottrans.fasta phased_to_ref/tx_phased_to_h${INDEX}.list >> final_phased_transcripts/tx_phased_to_h${INDEX}.pep
- done
-
- #now fix the headers
- mkdir final_phased_transcripts
- # generate transcript-specific haplotypes
- for INDEX in 0 1
- do
-     TDIR=final_phased_transcripts
-     cut -d'.' -f1,2,3,4,5 ${TDIR}/tx_phased_to_h${INDEX}.fasta | bioawk -v var=${INDEX} -cfastx '{printf(">%s.h%s\n%s\n", $name, var, $seq)}' > ${TDIR}/tx_phased_to_h${INDEX}.correct_headers.fasta
-     cut -d'.' -f1,2,3,4,5 ${TDIR}/tx_phased_to_h${INDEX}.pep   | bioawk -v var=${INDEX} -cfastx '{printf(">%s.h%s\n%s\n", $name, var, $seq)}' > ${TDIR}/tx_phased_to_h${INDEX}.correct_headers.pep
-     cut -d'.' -f1,2,3,4,5 ${TDIR}/tx_phased_to_h${INDEX}.fasta | bioawk -v var=${INDEX} -cfastx '{printf(">%s.h%s\n%s\n", $name, var, $seq)}' > ${TDIR}/tx_phased_to_h${INDEX}.correct_headers.fasta
-     cut -d'.' -f1,2,3,4,5 ${TDIR}/tx_phased_to_h${INDEX}.pep   | bioawk -v var=${INDEX} -cfastx '{printf(">%s.h%s\n%s\n", $name, var, $seq)}' > ${TDIR}/tx_phased_to_h${INDEX}.correct_headers.pep
- done
+# # now make a list of things that were phased
+# samtools view phased_to_ref/all_transcripts_haplotag.bam | grep 'HP:i:1' | cut -f1 | sort | uniq | sort > phased_to_ref/haplotype0_transcript.list
+# samtools view phased_to_ref/all_transcripts_haplotag.bam | grep 'HP:i:2' | cut -f1 | sort | uniq | sort > phased_to_ref/haplotype1_transcript.list
+#
+# # a list of transcripts that are shared by both haplotypes. Should be nothing
+# comm -12 phased_to_ref/haplotype0_transcript.list phased_to_ref/haplotype1_transcript.list > phased_to_ref/transcripts_shared_by_both.list
+#
+# # need to make a python script to parse this
+# # now get the transcripts that were able to be assigned uniquely to one haplotype or the other
+# for INDEX in 0 1
+# do
+#     cat phased_to_ref/haplotype${INDEX}_transcript.list | \
+#         python transcript_list_unique.py > phased_to_ref/tx_phased_to_h${INDEX}.list
+# done
+#
+# # double check a list of transcripts that are shared by both haplotypes. Should be nothing
+# comm -12 phased_to_ref/haplotype0_transcript.list phased_to_ref/haplotype1_transcript.list > phased_to_ref/transcripts_shared_by_both_2.list
+#
+# mkdir final_phased_transcripts
+# # generate transcript-specific haplotypes
+# for INDEX in 0 1
+# do
+#     OIND=1
+#     seqtk subseq h${OIND}flnc_to_${PREFIX}h${OIND}.pilon/h${OIND}flnc_to_${PREFIX}h${OIND}.pilon.fasta phased_to_ref/tx_phased_to_h${INDEX}.list > final_phased_transcripts/tx_phased_to_h${INDEX}.fasta
+##     seqtk subseq prottrans_predict/h${OIND}.prottrans.fasta phased_to_ref/tx_phased_to_h${INDEX}.list > final_phased_transcripts/tx_phased_to_h${INDEX}.pep
+##     OIND=2
+##     seqtk subseq h${OIND}flnc_to_${PREFIX}h${OIND}.pilon/h${OIND}flnc_to_${PREFIX}h${OIND}.pilon.fasta phased_to_ref/tx_phased_to_h${INDEX}.list >> final_phased_transcripts/tx_phased_to_h${INDEX}.fasta
+##     seqtk subseq prottrans_predict/h${OIND}.prottrans.fasta phased_to_ref/tx_phased_to_h${INDEX}.list >> final_phased_transcripts/tx_phased_to_h${INDEX}.pep
+# done
+#
+# #now fix the headers
+# mkdir final_phased_transcripts
+# # generate transcript-specific haplotypes
+# for INDEX in 0 1
+# do
+#     TDIR=final_phased_transcripts
+#     cut -d'.' -f1,2,3,4,5 ${TDIR}/tx_phased_to_h${INDEX}.fasta | bioawk -v var=${INDEX} -cfastx '{printf(">%s.h%s\n%s\n", $name, var, $seq)}' > ${TDIR}/tx_phased_to_h${INDEX}.correct_headers.fasta
+#     cut -d'.' -f1,2,3,4,5 ${TDIR}/tx_phased_to_h${INDEX}.pep   | bioawk -v var=${INDEX} -cfastx '{printf(">%s.h%s\n%s\n", $name, var, $seq)}' > ${TDIR}/tx_phased_to_h${INDEX}.correct_headers.pep
+#     cut -d'.' -f1,2,3,4,5 ${TDIR}/tx_phased_to_h${INDEX}.fasta | bioawk -v var=${INDEX} -cfastx '{printf(">%s.h%s\n%s\n", $name, var, $seq)}' > ${TDIR}/tx_phased_to_h${INDEX}.correct_headers.fasta
+#     cut -d'.' -f1,2,3,4,5 ${TDIR}/tx_phased_to_h${INDEX}.pep   | bioawk -v var=${INDEX} -cfastx '{printf(">%s.h%s\n%s\n", $name, var, $seq)}' > ${TDIR}/tx_phased_to_h${INDEX}.correct_headers.pep
+# done
