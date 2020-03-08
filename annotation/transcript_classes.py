@@ -39,6 +39,7 @@ class gffFile:
         self.IDTS = {}
         # GTT genes to transcripts
         self.GTT  = {}
+        self.used_isoforms = dict()
         self.filename = filename
         self.filetype = filetype
         if type(filename) == str:
@@ -278,6 +279,12 @@ def parse_spreadsheet(df, GFFs, CTGm):
                         print(isoforms_in_this_gene, file=sys.stderr)
                         print("We couldn't find: ", this_isoform_ID, " in ", key, file=sys.stderr)
                         raise Exception("Couldn't find the transcript in the GFF file object")
+                    # make sure that this isoform isn't a duplicate
+                    for lookup in look_these_up:
+                        if lookup not in GFFs[key].used_isoforms:
+                            GFFs[key].used_isoforms[lookup] = 1
+                        else:
+                            GFFs[key].used_isoforms[lookup] += 1
                     #now that we have a list of isoforms to add to this gene,
                     #  start printing things out
                     for lookup in look_these_up:
@@ -360,6 +367,21 @@ def parse_spreadsheet(df, GFFs, CTGm):
                     "ID={0};Name={0}".format(this_gene)]
             print("\t".join(gene))
             print(print_buffer, end="")
+    # now that everything has been parsed, we can check to see if any GFFs
+    #  had an isoform used more than once
+    print_message = """ - We found that the following isoforms were used more
+       than one time. Please make sure that within a column, an isoform is only
+       used once.\n"""
+    print_yes = False
+    for key in GFFs:
+        print_message = print_message + "    - {}\n".format(key)
+        for entry in GFFs[key].used_isoforms:
+            if GFFs[key].used_isoforms[entry] > 1:
+                print_yes = True
+                print_message = print_message + "      - {} - {}\n".format(entry, GFFs[key].used_isoforms[entry])
+    if print_yes:
+        print(print_message, file = sys.stderr)
+        raise IOError("Input error. See above message")
 
 def sumone_has_checked(df):
     df["checked"] = "none"

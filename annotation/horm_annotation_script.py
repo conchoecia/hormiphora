@@ -14,7 +14,7 @@ def parse_file_keyword(thisfile, keyword):
     return(return_me)
 
 def main():
-    annotation_spreadsheet = "raw_files/Hcal_annotation_v60.csv"
+    annotation_spreadsheet = "raw_files/Hcal_annotation_v64.csv"
     pinfish_files = ["raw_files/UCSC_Hcal_v1_B1_LR.pinfish_clusters.gff.gz",
                      "raw_files/UCSC_Hcal_v1_B1_LR.pinfish_clusters_c7p10.gff.gz",
                      "raw_files/UCSC_Hcal_v1_B1_LR.pinfish_clusters_c2p20.gff.gz"]
@@ -70,6 +70,27 @@ def main():
         #if key == "augustus":
         #    print(GFFs["augustus"].IDTS, file=sys.stderr)
         #    print(GFFs["augustus"].GTT, file=sys.stderr)
+
+    # Now make sure that there are no gene IDs shared between any of the GFFs
+    all_ids = dict()
+    #print(GFFs, file = sys.stderr)
+    for key in GFFs:
+        for thisgene in GFFs[key].GTT:
+            #print(thisgene, file = sys.stderr)
+            if thisgene not in all_ids:
+                all_ids[thisgene] = 1
+            else:
+                all_ids[thisgene] += 1
+    print_this = False
+    print_message = "The following genes were duplicates across multiple GFF files.\n"
+    for thisgene in all_ids:
+        if all_ids[thisgene] > 1:
+            print_this = True
+            print_message = print_message + "  - {} - {}\n".format(thisgene, all_ids[thisgene])
+    if print_this:
+        print(print_message, file = sys.stderr)
+        raise IOError("See above message.")
+
 
     # now parse the spreadsheet and print out new transcripts using the GFFs dict
 #ndex(['chromosome', 'stringtie_id', 'DTS_checked', 'spliced_in_intron',
