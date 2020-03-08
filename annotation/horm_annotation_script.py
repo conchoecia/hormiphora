@@ -14,7 +14,7 @@ def parse_file_keyword(thisfile, keyword):
     return(return_me)
 
 def main():
-    annotation_spreadsheet = "raw_files/Hcal_annotation_v64.csv"
+    annotation_spreadsheet = "raw_files/Hcal_annotation_v68.csv"
     pinfish_files = ["raw_files/UCSC_Hcal_v1_B1_LR.pinfish_clusters.gff.gz",
                      "raw_files/UCSC_Hcal_v1_B1_LR.pinfish_clusters_c7p10.gff.gz",
                      "raw_files/UCSC_Hcal_v1_B1_LR.pinfish_clusters_c2p20.gff.gz"]
