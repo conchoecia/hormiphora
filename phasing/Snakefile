@@ -1,0 +1,536 @@
+# author: Peter Edge
+# 12/19/2016
+# email: pedge@eng.ucsd.edu
+# modified by DTS in Feb 2020 - dts@ucsc.edu
+
+# this is a snakemake Snakefile, written using snakemake 5.10.0
+
+localrules: all
+
+################################################################################
+# USER CONFIG
+REFERENCE    = "/bigdata/user/darrin/hormiphora/assembly_versions/UCSC_Hcal_v1.fa"
+
+# change this list to limit the chromosomes analyzed
+chroms = ['c{}'.format(x) for x in range(1,14)]
+# or just get all the chromosomes
+#gets every sequence
+chroms = []
+with open(REFERENCE, "r") as f:
+    for line in f:
+        line = line.strip()
+        if line[0] == ">":
+            chroms.append(line.split()[0].replace(">", ""))
+
+LONGREAD_BAM = "/bigdata/user/darrin/hormiphora/phasing/LR_to_ref.sorted.bam"
+VCFfile      = "/bigdata/user/darrin/hormiphora/phasing/Hcal_v1_calls_dip.vcf"
+HIC_R1 = "/bigdata/user/darrin/hormiphora/phasing/attempt2/all_hic_R1.fastq.gz"
+HIC_R2 = "/bigdata/user/darrin/hormiphora/phasing/attempt2/all_hic_R2.fastq.gz"
+CHI_R1 = "/bigdata/user/darrin/hormiphora/phasing/attempt2/all_chic_R1.fastq.gz"
+CHI_R2 = "/bigdata/user/darrin/hormiphora/phasing/attempt2/all_chic_R2.fastq.gz"
+ILL_R1 = ""
+ILL_R2 = ""
+
+# edit these to point to the correct paths for binaries / jars
+# or just the program name if you have them in your PATH
+HAPCUT2      = 'HAPCUT2'
+EXTRACTHAIRS = 'extractHAIRS'
+BWA          = 'bwa'      # 0.7.12-r1044
+SAMTOOLS     = 'samtools' # samtools 1-2, htslib 1.21
+PICARD       = '/usr/local/bin/picard/picard.jar'   # picard version 2.8
+BAMTOOLS     = 'bamtools' # version 2.4
+TABIX        = 'tabix'
+BGZIP        = 'bgzip'
+maxthreads   = 90
+################################################################################
+
+# if Illumina data missing
+if ILL_R1 == "" and ILL_R2 == "":
+    ILL_R1 = "ill_R1.fastq.gz"
+    ILL_R2 = "ill_R2.fastq.gz"
+    if not os.path.exists(ILL_R1):
+        os.mknod(ILL_R1)
+    if not os.path.exists(ILL_R2):
+        os.mknod(ILL_R2)
+
+import os
+
+rule all:
+    input:
+        "data/hic.bam",
+        "data/chi.bam",
+        "data/ill.bam",
+        # get the frag files
+        expand("data/hic/{chrom}.frag", chrom=chroms),
+        expand("data/longread/{chrom}.frag", chrom=chroms),
+        expand('output/{chrom}.hap',chrom=chroms),
+        expand('output/{chrom}.hap.phased.VCF', chrom=chroms),
+        "final_output/complete_assembly.hap.gz",
+        "final_output/complete_assembly.hap.phased.VCF.gz",
+        "final_output/complete_assembly.hap.phased.VCF.gz.tbi",
+        "final_output/hapcut_largest_blocks_per_sca.txt",
+        "final_output/largest_blocks.hap.phased.VCF.gz",
+        "final_output/largest_blocks.hap.phased.VCF.gz.tbi",
+        expand("final_output/phased_by_chromosome/largest_blocks.hap.phased.{chrom}.vcf.gz", chrom=chroms),
+        expand("final_output/phased_by_chromosome/largest_blocks.hap.phased.{chrom}.vcf.gz.tbi", chrom=chroms)
+
+
+rule split_phased_into_individuals:
+    input:
+        final_gz = "final_output/largest_blocks.hap.phased.VCF.gz",
+        final_in = "final_output/largest_blocks.hap.phased.VCF.gz.tbi"
+    output:
+        chroms = temp("final_output/phased_by_chromosome/largest_blocks.hap.phased.{chrom}.VCF"),
+        chromgz = "final_output/phased_by_chromosome/largest_blocks.hap.phased.{chrom}.vcf.gz",
+        index = "final_output/phased_by_chromosome/largest_blocks.hap.phased.{chrom}.vcf.gz.tbi"
+    threads: 1
+    params:
+        tchrom = lambda w: w.chrom
+    shell:
+        """
+        bcftools filter -r {params.tchrom} {input.final_gz} > {output.chroms}
+        # compress
+        {BGZIP} -c {output.chroms} > {output.chromgz}
+        # index
+        {TABIX} -p vcf {output.chromgz}
+        """
+
+rule compress_final_output:
+    input:
+        final_vcf = "final_output/largest_blocks.hap.phased.VCF"
+    output:
+        final_gz = "final_output/largest_blocks.hap.phased.VCF.gz",
+        final_in = "final_output/largest_blocks.hap.phased.VCF.gz.tbi"
+    threads: 1
+    shell:
+        """
+        # compress
+        {BGZIP} -c {input.final_vcf} > {output.final_gz}
+        # index
+        {TABIX} -p vcf {output.final_gz}
+        """
+
+rule hap_blocks_to_vcf:
+    input:
+        vcf = "final_output/complete_assembly.hap.phased.VCF",
+        hap = "final_output/complete_assembly.hap",
+        txt = "final_output/hapcut_largest_blocks_per_sca.txt"
+    output:
+        final_vcf = temp("final_output/largest_blocks.hap.phased.VCF")
+    threads: 1
+    run:
+        # first get the headers that we want
+        headers = set()
+        with open(input.txt, "r") as f:
+            for line in f:
+                line = line.split("\"")[1]
+                headers.add(line)
+        # now get the sites that we will keep
+        #  key is chr, set of sites
+        keepers = {}
+        with open(input.hap, "r") as f:
+            capturing = False
+            for line in f:
+                line=line.replace('*',"").strip()
+                if line:
+                    splitd = line.split()
+                    if splitd[0] == "BLOCK:":
+                        if line in headers:
+                            capturing = True
+                        else:
+                            capturing = False
+                    else:
+                        if capturing:
+                            this_c = splitd[3]
+                            this_s = int(splitd[4])
+                            if this_c not in keepers:
+                                keepers[this_c] = set()
+                            keepers[this_c].add(this_s)
+        # now get the sites that are in the phase blocks
+        writeme = open(output.final_vcf, "w")
+        with open(input.vcf, "r") as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    if line[0] == '#':
+                        print(line, file = writeme)
+                    else:
+                        # not a comment
+                        splitd = line.split()
+                        this_c = splitd[0]
+                        this_s = int(splitd[1])
+                        if this_c in keepers:
+                            if this_s in keepers[this_c]:
+                                print(line, file = writeme)
+        writeme.close()
+
+rule gzip_hapcut2_vcf:
+    input:
+        vcf = "final_output/complete_assembly.hap.phased.VCF"
+    output:
+        vcf = "final_output/complete_assembly.hap.phased.VCF.gz",
+        tbi = "final_output/complete_assembly.hap.phased.VCF.gz.tbi",
+    shell:
+        """
+        {BGZIP} -c {input.vcf} > {output.vcf}
+        # index
+        {TABIX} -p vcf {output.vcf}
+        """
+
+rule gzip_complete_assembly_hap_file:
+    input:
+        hap = "final_output/complete_assembly.hap"
+    output:
+        gzipped = "final_output/complete_assembly.hap.gz"
+    shell:
+        """
+        gzip {input.hap}
+        """
+
+rule get_largest_hap_blocks:
+    input:
+        hap = "final_output/complete_assembly.hap",
+        vcf = "final_output/complete_assembly.hap.phased.VCF"
+    output:
+        txt = "final_output/hapcut_largest_blocks_per_sca.txt"
+    run:
+        biggest_blocks = {}
+        this_block_header = ""
+        this_block_c = ""
+        this_block_start = -1
+        this_block_stop = -1
+        with open(input.hap, "r") as f:
+            for line in f:
+                line = line.replace("*", "").strip()
+                if line:
+                    splitd = line.split()
+                    if splitd[0] == "BLOCK:":
+                        # we have just found a new block
+                        if not this_block_header == "":
+                            # not the first, add an entry to biggest_blocks
+                            span = int(this_block_stop) - int(this_block_start) + 1
+                            add_this = False
+                            if this_block_c not in biggest_blocks:
+                                add_this = True
+                            else:
+                                if span > biggest_blocks[this_block_c]["span"]:
+                                    add_this = True
+                            if add_this:
+                                biggest_blocks[this_block_c] = {"name": this_block_header, "span": span}
+                        this_block_start = -1
+                        this_block_stop = -1
+                        this_block_header = line
+                    else:
+                        if this_block_start == -1:
+                            this_block_start = splitd[4]
+                            this_block_stop = splitd[4]
+                            this_block_c     = splitd[3]
+                        else:
+                            this_block_stop = splitd[4]
+        # final parsing at the end
+        add_this = False
+        if this_block_c not in biggest_blocks:
+            add_this = True
+        else:
+            if span > biggest_blocks[thisc]["span"]:
+                add_this = True
+        if add_this:
+            biggest_blocks[this_block_c] = {"name": this_block_header, "span": span}
+        with open(output.txt, "w") as f:
+            for key in biggest_blocks:
+                print("{}\t{}\t\"{}\"".format(
+                      key,
+                      biggest_blocks[key]["span"],
+                      biggest_blocks[key]["name"]), file = f)
+
+rule sort_final_vcf:
+    """
+    I found a trick here to avoid grep crashing in case of a nonmatch
+    https://unix.stackexchange.com/questions/330660
+    """
+    input:
+        origvcf = VCFfile,
+        vcf = expand("output/{chrom}.hap.phased.VCF", chrom = chroms),
+        hap = expand("output/{chrom}.hap", chrom = chroms),
+    output:
+        hap = temp("final_output/complete_assembly.hap"),
+        vcf = temp("final_output/complete_assembly.hap.phased.VCF")
+    shell:
+        """
+        set +e
+
+        cat {input.origvcf} | grep '##fileformat'  > temp.vcf
+        cat {input.origvcf} | grep '##filedate'    >> temp.vcf
+        cat {input.origvcf} | grep '##source'      >> temp.vcf
+        cat {input.origvcf} | grep '##reference'   >> temp.vcf
+        cat {input.origvcf} | grep '##commandline' >> temp.vcf
+        cat {input.origvcf} | grep '##contig'      >> temp.vcf
+        cat {input.origvcf} | grep '##INFO'        >> temp.vcf
+        cat {input.origvcf} | grep '##FORMAT'      >> temp.vcf
+        cat {input.origvcf} | grep '#CHROM'        >> temp.vcf
+        echo '##SAMPLE=<ID=NONE>'        >> temp.vcf
+
+
+        cat {input.vcf} >> temp.vcf
+        cat {input.hap} > {output.hap}
+        cat temp.vcf | awk '$1 ~ /^#/ {{print $0;next}} {{print $0 | "sort -k1,1 -k2,2n"}}' > {output.vcf}
+        rm temp.vcf
+        set -e
+        """
+
+# run HapCUT2 to assemble haplotypes from combined Hi-C + longread haplotype fragments
+rule run_hapcut2_hic_longread:
+    input:  frag_file = 'data/all_datatypes/{chrom}.frag',
+            vcf_file  = "data/vcfdir/{chrom}.vcf"
+    output: hap = 'output/{chrom}.hap',
+            vcf = 'output/{chrom}.hap.phased.VCF'
+    params:
+        thischrom = lambda wildcards: wildcards.chrom
+    threads: 1
+    shell:
+        """
+        {HAPCUT2} --fragments {input.frag_file} --vcf {input.vcf_file} \
+            --output {output.hap} \
+            --hic 1 \
+            --htrans_data_outfile output/{params.thischrom}.htrans_model \
+            --outvcf 1
+        """
+
+# then concatenate the Hi-C fragment file and longread fragment file
+rule concatenate_hic_longread:
+    input:  hic      = "data/hic/{chrom}.frag",
+            longread = "data/longread/{chrom}.frag",
+            chicago  = "data/chi/{chrom}.frag",
+            ill      = "data/ill/{chrom}.frag"
+    output: cat = "data/all_datatypes/{chrom}.frag"
+    threads: 1
+    shell:
+        """
+        cat {input.hic} {input.longread} {input.chicago} {input.ill} > {output.cat}
+        """
+
+# convert Hi-C bam files to haplotype fragment files
+rule longread_extract_hairs:
+    input:
+        ref = REFERENCE,
+        bam = "data/longread_separated/longread.REF_{chrom}.bam",
+        vcf  = "data/vcfdir/{chrom}.vcf"
+    output:
+        frag = 'data/longread/{chrom}.frag'
+    threads: 1
+    shell:
+        """
+        {EXTRACTHAIRS} --pacbio 1 --new_format 1 --indels 1 \
+           --bam {input.bam} --ref {input.ref} --VCF {input.vcf} > {output.frag}
+        """
+
+# convert Hi-C bam files to haplotype fragment files
+rule hic_extract_hairs:
+    input:
+        bam = "data/hic_separated/hic.REF_{chrom}.bam",
+        vcf = "data/vcfdir/{chrom}.vcf"
+    output:
+        frag = "data/hic/{chrom}.frag"
+    threads: 1
+    shell:
+        """
+        {EXTRACTHAIRS} --hic 1 --new_format 1 \
+           --indels 1 --bam {input.bam} --VCF {input.vcf} > {output.frag}
+        """
+
+rule chi_extract_hairs:
+    """
+    The parameters for Chicago data were taken from:
+      https://github.com/vibansal/HapCUT2/issues/13
+    """
+    input:
+        ref = REFERENCE,
+        bam = "data/chi_separated/chi.REF_{chrom}.bam",
+        vcf = "data/vcfdir/{chrom}.vcf"
+    output:
+        frag = "data/chi/{chrom}.frag"
+    threads: 1
+    shell:
+        """
+        {EXTRACTHAIRS} --maxIS 10000000 --new_format 1 \
+           --indels 1 --ref {input.ref} \
+           --bam {input.bam} --VCF {input.vcf} > {output.frag}
+        """
+
+rule ill_extract_hairs:
+    input:
+        ref = REFERENCE,
+        bam = "data/ill_separated/ill.REF_{chrom}.bam",
+        vcf = "data/vcfdir/{chrom}.vcf"
+    output:
+        frag = "data/ill/{chrom}.frag"
+    threads: 1
+    shell:
+        """
+        {EXTRACTHAIRS} --new_format 1 \
+           --indels 1 --ref {input.ref} \
+           --bam {input.bam} --VCF {input.vcf} > {output.frag}
+        """
+
+# split bam files by chromosome
+rule split_bams:
+    params: job_name = '{dataset}_bamsplit',
+            stub     = 'data/{dataset}_separated/{dataset}',
+    input:  bam = 'data/{dataset}.bam'
+    output: expand('data/{{dataset}}_separated/{{dataset}}.REF_{chrom}.bam',chrom=chroms)
+    shell:
+        """
+        {BAMTOOLS} split -in {input} -reference -stub {params.stub}
+
+        for thisfile in {output}; do
+            if [ ! -f ${{thisfile}} ]; then
+                {SAMTOOLS} view -Hb {input.bam} > ${{thisfile}}
+            fi
+        done
+        """
+
+rule SL_LRbam:
+    input: bam = LONGREAD_BAM
+    output: bam = "data/longread.bam"
+    threads: 1
+    run:
+        src = os.path.abspath(input.bam)
+        print(src)
+        dest = output.bam
+        print(dest)
+        os.symlink(src, dest)
+
+# picard MarkDuplicates on Hi-C reads
+rule mark_duplicates_hic:
+    params: job_name = 'mark_duplicates_hic'
+    input:  bam = 'data/temp/hic_sorted.bam'
+    output: bam = 'data/hic.bam',
+            metrics = 'data/hic.metrics'
+    shell:
+        """
+        java -jar {PICARD} MarkDuplicates READ_NAME_REGEX= null \
+            INPUT= {input.bam} OUTPUT= {output.bam} \
+            METRICS_FILE= {output.metrics} \
+            ASSUME_SORTED= true
+        """
+
+rule mark_duplicates_chicago:
+    params: job_name = 'mark_duplicates_chicago'
+    input:  bam = 'data/temp/chi_sorted.bam'
+    output: bam = 'data/chi.bam',
+            metrics = 'data/chi.metrics'
+    shell:
+        """
+        java -jar {PICARD} MarkDuplicates READ_NAME_REGEX= null \
+            INPUT= {input.bam} OUTPUT= {output.bam} \
+            METRICS_FILE= {output.metrics} \
+            ASSUME_SORTED= true
+        """
+
+rule mark_duplicates_illumina:
+    params: job_name = 'mark_duplicates_illumina'
+    input:  bam = 'data/temp/ill_sorted.bam'
+    output: bam = 'data/ill.bam',
+            metrics = 'data/ill.metrics'
+    shell:
+        """
+        java -jar {PICARD} MarkDuplicates READ_NAME_REGEX= null \
+            INPUT= {input.bam} OUTPUT= {output.bam} \
+            METRICS_FILE= {output.metrics} \
+            ASSUME_SORTED= true
+        """
+
+# split all vcf files by chromosome
+rule split_vcf_into_chr_zip:
+    input: VCF = VCFfile
+    output:
+        tvcf = temp("data/vcfdir/temp.vcf.gz"),
+        index = temp("data/vcfdir/temp.vcf.gz.tbi"),
+        chrtxt = temp("chromosomes.txt")
+    threads: 1
+    shell:
+        """
+        {BGZIP} -c {input.VCF} > {output.tvcf}  #compress vcf
+        {TABIX} -p vcf {output.tvcf}  # index compressed vcf
+        {TABIX} --list-chroms {output.tvcf} > {output.chrtxt}  # save all the chromosome names into a file
+        """
+
+# split all vcf files by chromosome
+rule split_vcf_into_chr_remainder:
+    input:
+        gz = "data/vcfdir/temp.vcf.gz",
+        index = "data/vcfdir/temp.vcf.gz.tbi",
+        chrtxt = "chromosomes.txt"
+    output:
+        vcf  = temp(expand("data/vcfdir/{chrom}.vcf", chrom=chroms)),
+    threads: 1
+    shell:
+        """
+        while IFS= read -r line; do
+          {TABIX} {input.gz} $line > data/vcfdir/$line.vcf;
+        done < {input.chrtxt}
+        """
+
+# align HiC fastq file to reference
+rule align_HiC_fastq:
+    params: job_name = 'align_hic'
+    input:  ref = REFERENCE,
+            idx = REFERENCE+'.bwt',
+            R1 = HIC_R1,
+            R2 = HIC_R2,
+    output: temp('data/temp/hic_sorted.bam')
+    threads: maxthreads
+    shell:
+        """
+        {BWA} mem -t {threads} -5SPM {REFERENCE} {input.R1} {input.R2} | \
+          samtools view -hb -@ {threads} | \
+          samtools sort -@ {threads} - > {output}
+        """
+
+# align Chicago fastq file to reference
+rule align_Chicago_fastq:
+    params: job_name = 'align_chic'
+    input:  ref = REFERENCE,
+            idx = REFERENCE+'.bwt',
+            R1 = CHI_R1,
+            R2= CHI_R2,
+    output: temp('data/temp/chi_sorted.bam')
+    threads: maxthreads
+    shell:
+        """
+        {BWA} mem -t {threads} -5SPM {REFERENCE} {input.R1} {input.R2} | \
+          samtools view -hb -@ {threads} | \
+          samtools sort -@ {threads} - > {output}
+        """
+
+# align Illumina fastq file to reference
+rule align_Illumina_fastq:
+    params: job_name = 'align_ill'
+    input:  ref = REFERENCE,
+            idx = REFERENCE+'.bwt',
+            R1 = ILL_R1,
+            R2 = ILL_R2,
+    output: temp('data/temp/ill_sorted.bam')
+    threads: maxthreads
+    shell:
+        """
+        {BWA} mem -t {threads} {REFERENCE} {input.R1} {input.R2} | \
+          samtools view -hb -@ {threads} | \
+          samtools sort -@ {threads} - > {output}
+        """
+
+# index reference genome
+rule index_genome:
+    params: job_name = 'index_reference'
+    input:  REFERENCE
+    output: REFERENCE+'.bwt'
+    threads: maxthreads
+    shell:
+        '{BWA} index {REFERENCE}'
+
+# index bamfile
+rule index_bam:
+    params: job_name = 'index_bam{x}'
+    input:  bam = '{x}.bam'
+    output: bai = '{x}.bam.bai'
+    shell:  '{SAMTOOLS} index {input.bam} {output.bai}'
