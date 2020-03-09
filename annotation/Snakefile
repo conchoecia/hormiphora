@@ -60,7 +60,11 @@ rule all:
                fix = PREFIX, index = ["1", "2"]),
         # translate proteins
         expand("final_output/protein_sequences/partly_phased/h{index}_{fix}.pep",
-               fix = PREFIX, index = ["1","2"])
+               fix = PREFIX, index = ["1","2"]),
+        expand("final_output/protein_sequences/model/protein_size_table_{fix}.csv",
+               fix = PREFIX),
+        expand("final_output/protein_sequences/model/{fix}_model_proteins.pep.gz",
+               fix = PREFIX),
 
 rule gen_temporary_ref:
     input:
