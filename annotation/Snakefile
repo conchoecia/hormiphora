@@ -61,6 +61,7 @@ rule all:
         # translate proteins
         expand("final_output/protein_sequences/partly_phased/h{index}_{fix}.pep",
                fix = PREFIX, index = ["1","2"]),
+        # make protein models
         expand("final_output/protein_sequences/model/protein_size_table_{fix}.csv",
                fix = PREFIX),
         expand("final_output/protein_sequences/model/{fix}_model_proteins.pep.gz",
@@ -70,7 +71,7 @@ rule gen_temporary_ref:
     input:
         ref = REF
     output:
-        tempref = "tempfiles/ref.fa"
+        tempref = temp("tempfiles/ref.fa")
     shell:
         """
         zcat {input.ref} > {output.tempref}
@@ -361,17 +362,37 @@ rule make_gene_comparison_table:
         gzip {params.protein_model}
         """
 
- ## this bit is all for phasing the transcripts
- ## map haplotype1 and haplotype2 back to the genome
- #mkdir phased_to_ref
- #for INDEX in 1 2
- #do
- #    minimap2 -ax splice -t ${THREADS} ${REF} \
- #        h${INDEX}flnc_to_${PREFIX}h${INDEX}.pilon/h${INDEX}flnc_to_${PREFIX}h${INDEX}.pilon.fasta | \
- #        samtools view -hb -@ ${THREADS} - | \
- #        samtools sort -@ ${THREADS} - > phased_to_ref/pilon_tx_${INDEX}_to_ref.sorted.bam
- #    samtools index phased_to_ref/pilon_tx_${INDEX}_to_ref.sorted.bam
- #done
+rule map_phased_transcripts_to_genome:
+    """
+    Next we need to figure out the phasing of the transcripts
+     to match them with the whole-genome phasing.
+    """
+    input:
+        transcripts = "final_output/nucleotide_sequences/partly_phased/h{index}_pilon_{fix}.fasta",
+        genome = "tempfiles/ref.fa"
+    output:
+        bam = "tempfiles/bamfiles/trnascripts_to_genome/pilon_h{index}_to_ref.{fix}.sorted.bam"
+    threads: MAXTHREADS
+    shell:
+        """
+        minimap2 -ax asm20 -t {threads} {input.genome} {input.transcripts} | \
+            samtools view -hb -@ {threads} - | \
+            samtools sort -@ {threads} - > {output.bam}
+        samtools index {output.bam}
+        """
+
+#rule merge_bams:
+#    """
+#    just merge the bams from the transcripts to phase them
+#    """
+#    input:
+#        bams = expand("tempfiles/bamfiles/trnascripts_to_genome/pilon_h{index}_to_ref.{fix}.sorted.bam", fix = PREFIX, index = ["1", "2"]),
+#    output:
+#        merged = "tempfiles/bamfiles/trnascripts_to_genome/pilon_merged_to_ref.{fix}.sorted.bam"
+#    threads: 1
+#    shell:
+#        """
+#        """
 
  # merge the bams
  #samtools merge -f phased_to_ref/phased_transcripts_to_ref.bam phased_to_ref/pilon_tx_1_to_ref.sorted.bam phased_to_ref/pilon_tx_2_to_ref.sorted.bam
