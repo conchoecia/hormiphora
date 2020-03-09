@@ -24,7 +24,7 @@ The data outputs for this program are:
 import gzip
 
 # PUT YOUR FILES HERE
-THREADS  = 90
+MAXTHREADS  = 90
 REF      = "raw_files/UCSC_Hcal_v1.fa.gz"
 PREFIX   = "Hcv1.1_20200309"
 CSV      = "raw_files/Hcal_annotation_v68.csv"
@@ -46,17 +46,16 @@ rule all:
     input:
         "tempfiles/phased.vcf",
         "tempfiles/ref.fa",
-        expand("final_output/{fix}.gff", fix = PREFIX)
+        expand("final_output/{fix}.gff", fix = PREFIX),
+        expand("final_output/nucleotide_sequences/unphased/{fix}_transcripts.fasta",fix = PREFIX),
+        expand("tempfiles/bamfiles/rna_to_transcripts/ill_to_{fix}_transcripts.sorted.bam", fix = PREFIX),
+        expand("final_output/vcf_files/{fix}_transcripts.vcf", fix = PREFIX),
+        expand("final_output/vcf_files/phased/{fix}_transcripts.phased.vcf", fix = PREFIX),
+        # these are phased transcripts, but do not match the phase of the genome
 
-rule gen_temporary_vcf:
-    input:
-        vcfs = expand("../phasing/final_output/phased_by_chromosome/largest_blocks.hap.phased.{chrom}.vcf.gz", chrom = chroms),
-    output:
-        tempvcf = "tempfiles/phased.vcf"
-    shell:
-        """
-        bcftools merge -Ov --force-samples {input.vcfs} > {output.tempvcf}
-        """
+        # pilon polish the transcripts
+        expand("final_output/nucleotide_sequences/partly_phased/h{index}_pilon_{fix}.fasta",
+               fix = PREFIX, index = [1,2])
 
 rule gen_temporary_ref:
     input:
@@ -69,8 +68,12 @@ rule gen_temporary_ref:
         """
 
 rule gen_transcripts_from_spreadsheet:
+    """
+    generates a gff files from all of the sources
+    and our manual annotation
+    """
     input:
-        ref = "tempfiles/ref.fa"
+        ref = "tempfiles/ref.fa",
         csv = CSV,
         has = "horm_annotation_script.py",
         tc  = "transcript_classes.py"
@@ -81,74 +84,221 @@ rule gen_transcripts_from_spreadsheet:
         python {input.has} {input.csv} > {output.gff}
         """
 
- #### first generate a sequence for each isoform
- #gffread -w ${PREFIX}.transcripts.fasta -g ${REF} ${GFF}
- #bwa index ${PREFIX}.transcripts.fasta
- #
- ### now map illumina to each transcript
- #bwa mem -t ${THREADS} ${PREFIX}.transcripts.fasta ${RNAF} ${RNAR} | \
- #   samtools view -hb -@ ${THREADS} - | \
- #        samtools sort -@ ${THREADS} > ILL_to_${PREFIX}.sorted.bam
- #samtools index ILL_to_${PREFIX}.sorted.bam
- #
- ## now map flnc to each transcript
- #minimap2 -ax asm20 -t ${THREADS} ${PREFIX}.transcripts.fasta ${FLNC} | \
- #   samtools view -hb -@ ${THREADS} - | \
- #   samtools sort -@ ${THREADS} > flnc_to_${PREFIX}.sorted.bam
- #samtools index flnc_to_${PREFIX}.sorted.bam
- #
- ## merge bams
- #samtools merge ILL_and_flnc.merged.bam ILL_to_${PREFIX}.sorted.bam flnc_to_${PREFIX}.sorted.bam
- #samtools index ILL_and_flnc.merged.bam
+rule gen_fasta_from_gff:
+    input:
+        ref = "tempfiles/ref.fa",
+        gff = "final_output/{fix}.gff"
+    output:
+        fas = "final_output/nucleotide_sequences/unphased/{fix}_transcripts.fasta"
+    shell:
+        """
+        gffread -w {output.fas} -g {input.ref} {input.gff}
+        """
 
- ## call a vcf
- #samtools faidx ${PREFIX}.transcripts.fasta
- #freebayes-parallel <(freebayes_fasta_generate_regions.py ${PREFIX}.transcripts.fasta.fai 100000) ${THREADS} \
- #       -f ${PREFIX}.transcripts.fasta ILL_and_flnc.merged.bam > calls.vcf
- #
- #whatshap phase --indels --ignore-read-groups \
- #   --reference ${PREFIX}.transcripts.fasta \
- #   -o whatshap_phased.vcf \
- #   calls.vcf ILL_to_${PREFIX}.sorted.bam flnc_to_${PREFIX}.sorted.bam
- #bgzip -c whatshap_phased.vcf > whatshap_phased.vcf.gz
- #tabix -p vcf whatshap_phased.vcf.gz
- #whatshap haplotag --ignore-read-groups -o flnc_haplotagged.bam \
- #   --reference ${PREFIX}.transcripts.fasta whatshap_phased.vcf.gz flnc_to_${PREFIX}.sorted.bam
+rule map_illumina_to_transcripts:
+    """
+    we will use this alignment to phase the transcripts
+    """
+    input:
+        fas = "final_output/nucleotide_sequences/unphased/{fix}_transcripts.fasta",
+        freads = RNAF,
+        rreads = RNAR
+    output:
+        bam = "tempfiles/bamfiles/rna_to_transcripts/ill_to_{fix}_transcripts.sorted.bam"
+    threads: MAXTHREADS
+    shell:
+        """
+        ### first generate a sequence for each isoform
+        bwa index {input.fas}
+        ## now map illumina to each transcript
+        bwa mem -t {threads} {input.fas} {input.freads} {input.rreads} | \
+           samtools view -hb -@ {threads} - | \
+           samtools sort -@ {threads} > {output.bam}
+        samtools index {output.bam}
+        """
 
- ## generate two references
- #for INDEX in 1 2
- #do
- #    bcftools consensus -H ${INDEX} -f ${PREFIX}.transcripts.fasta whatshap_phased.vcf.gz > ${PREFIX}.haplotype${INDEX}.fasta
- #done
- #
- ## now get one fastq file per haplotig
- #for INDEX in 1 2
- #do
- #    samtools view -F 4 flnc_haplotagged.bam | \
- #    grep "HP:i:${INDEX}" | cut -f1 | sort | uniq > h${INDEX}.reads.txt
- #    seqtk subseq ${FLNC} h${INDEX}.reads.txt >  h${INDEX}.flnc.fastq
- #    gzip -f h${INDEX}.flnc.fastq
- #done
- #
- ## now map the reads to the haplotypes and correct with pilon
- #for INDEX in 1 2
- #do
- #    minimap2 -ax asm20 -t ${THREADS} \
- #   ${PREFIX}.haplotype${INDEX}.fasta h${INDEX}.flnc.fastq.gz | \
- #   samtools view -hb -@ ${THREADS} - | \
- #   samtools sort -@ ${THREADS} - > h${INDEX}flnc_to_${PREFIX}h${INDEX}.sorted.bam
- #    samtools index h${INDEX}flnc_to_${PREFIX}h${INDEX}.sorted.bam
- #    java -Xmx100G -jar ${PILONJAR} --genome ${PREFIX}.haplotype${INDEX}.fasta \
- #        --unpaired h${INDEX}flnc_to_${PREFIX}h${INDEX}.sorted.bam \
- #        --outdir h${INDEX}flnc_to_${PREFIX}h${INDEX}.pilon \
- #        --output h${INDEX}flnc_to_${PREFIX}h${INDEX}.pilon \
- #        --threads ${THREADS}
- #done
+rule map_flnc_to_transcripts:
+    input:
+        fas = "final_output/nucleotide_sequences/unphased/{fix}_transcripts.fasta",
+        flnc = FLNC
+    output:
+        bam = "tempfiles/bamfiles/rna_to_transcripts/flnc_to_{fix}_transcripts.sorted.bam"
+    threads: MAXTHREADS
+    shell:
+        """
+        # now map flnc to each transcript
+        minimap2 -ax asm20 -t {threads} {input.fas} {input.flnc} | \
+           samtools view -hb -@ {threads} - | \
+           samtools sort -@ {threads} > {output.bam}
+        samtools index {output.bam}
+        """
+
+rule merge_bams:
+    """
+    merge the bam files
+    """
+    input:
+        ill_bam  = "tempfiles/bamfiles/rna_to_transcripts/ill_to_{fix}_transcripts.sorted.bam",
+        flnc_bam = "tempfiles/bamfiles/rna_to_transcripts/flnc_to_{fix}_transcripts.sorted.bam"
+    output:
+        merged   = "tempfiles/bamfiles/merged_to_transcripts/allreads_to_{fix}_transcripts.sorted.bam"
+    shell:
+        """
+        # merge bams
+        samtools merge {output.merged} {input.ill_bam} {input.flnc_bam}
+        samtools index {output.merged}
+        """
+
+rule call_vcf_of_transcripts:
+    input:
+        fas = "final_output/nucleotide_sequences/unphased/{fix}_transcripts.fasta",
+        merged   = "tempfiles/bamfiles/merged_to_transcripts/allreads_to_{fix}_transcripts.sorted.bam"
+    output:
+        vcf = "final_output/vcf_files/{fix}_transcripts.vcf"
+    threads: MAXTHREADS
+    shell:
+        """
+        # call a vcf
+        samtools faidx {input.fas}
+        freebayes-parallel <(freebayes_fasta_generate_regions.py {input.fas}.fai 100000) {threads} \
+               -f {input.fas} {input.merged} > {output.vcf}
+        """
+rule phase_transcripts:
+    input:
+        fas = "final_output/nucleotide_sequences/unphased/{fix}_transcripts.fasta",
+        vcf = "final_output/vcf_files/{fix}_transcripts.vcf",
+        ill_bam  = "tempfiles/bamfiles/rna_to_transcripts/ill_to_{fix}_transcripts.sorted.bam",
+        flnc_bam = "tempfiles/bamfiles/rna_to_transcripts/flnc_to_{fix}_transcripts.sorted.bam"
+    output:
+        vcf = "final_output/vcf_files/phased/{fix}_transcripts.phased.vcf"
+    shell:
+        """
+        whatshap phase --indels --ignore-read-groups \
+           --reference {input.fas} \
+           -o {output.vcf} \
+           {input.vcf} {input.ill_bam} {input.flnc_bam}
+        """
+
+rule haplotag_flnc_bam:
+    input:
+        vcf = "final_output/vcf_files/phased/{fix}_transcripts.phased.vcf",
+        fas = "final_output/nucleotide_sequences/unphased/{fix}_transcripts.fasta",
+        flnc_bam = "tempfiles/bamfiles/rna_to_transcripts/flnc_to_{fix}_transcripts.sorted.bam"
+    output:
+        gzvcf = "final_output/vcf_files/phased/{fix}_transcripts.phased.vcf.gz",
+        flnc_bam = "tempfiles/bamfiles/rna_to_transcripts/flnc_haplotagged_to_{fix}_transcripts.sorted.bam"
+    shell:
+        """
+        bgzip -c {input.vcf} > {output.gzvcf}
+        tabix -p vcf {output.gzvcf}
+        whatshap haplotag --ignore-read-groups -o {output.flnc_bam} \
+           --reference {input.fas} {output.gzvcf} {input.flnc_bam}
+        """
+
+rule generate_two_references_from_vcf:
+    input:
+        fas = "final_output/nucleotide_sequences/unphased/{fix}_transcripts.fasta",
+        gzvcf = "final_output/vcf_files/phased/{fix}_transcripts.phased.vcf.gz",
+    output:
+        fas1 = "tempfiles/nucleotide_sequences/unphased/phase1_transcripts_{fix}.fasta",
+        fas2 = "tempfiles/nucleotide_sequences/unphased/phase2_transcripts_{fix}.fasta",
+    params:
+        outstem = lambda wildcards: "tempfiles/nucleotide_sequences/unphased",
+        prefix = lambda wildcards: wildcards.fix
+    shell:
+        """
+        # generate two references
+        for INDEX in 1 2
+        do
+            bcftools consensus -H ${{INDEX}} \
+                -f {input.fas} {input.gzvcf} > {params.outstem}/phase${{INDEX}}_transcripts_{params.prefix}.fasta
+        done
+        """
+
+rule get_one_fastq_file_per_haplotig:
+    """
+    split the haplotagged fastq file to correct later.
+    """
+    input:
+        fas1 = "tempfiles/nucleotide_sequences/unphased/phase1_transcripts_{fix}.fasta",
+        fas2 = "tempfiles/nucleotide_sequences/unphased/phase2_transcripts_{fix}.fasta",
+        flnc_bam = "tempfiles/bamfiles/rna_to_transcripts/flnc_haplotagged_to_{fix}_transcripts.sorted.bam",
+        reads = FLNC
+    output:
+        h1list  = "tempfiles/fastq/unphased/h1list.{fix}.reads.txt",
+        h2list  = "tempfiles/fastq/unphased/h2list.{fix}.reads.txt",
+        h1reads = "tempfiles/fastq/unphased/h1.flnc.{fix}.fastq.gz",
+        h2reads = "tempfiles/fastq/unphased/h2.flnc.{fix}.fastq.gz",
+    params:
+        prefix = lambda wildcards: wildcards.fix
+    shell:
+        """
+        # now get one fastq file per haplotig
+        for INDEX in 1 2
+        do
+            samtools view -F 4 {input.flnc_bam} | \
+                grep "HP:i:${{INDEX}}" | cut -f1 | sort | \
+                uniq > tempfiles/fastq/unphased/h${{INDEX}}list.{params.prefix}.reads.txt
+            seqtk subseq {input.reads} tempfiles/fastq/unphased/h${{INDEX}}list.{params.prefix}.reads.txt > tempfiles/fastq/unphased/h${{INDEX}}.flnc.{params.prefix}.fastq
+            gzip -f tempfiles/fastq/unphased/h${{INDEX}}.flnc.{params.prefix}.fastq
+        done
+        """
+
+rule map_reads_to_transcripts:
+    """
+    # now map the reads to the haplotypes and correct with pilon
+    """
+    input:
+        fas = "tempfiles/nucleotide_sequences/unphased/phase{index}_transcripts_{fix}.fasta",
+        reads = "tempfiles/fastq/unphased/h{index}.flnc.{fix}.fastq.gz",
+    output:
+        bam = "tempfiles/bamfiles/h{index}flnc_to_h{index}.{fix}.sorted.bam"
+    threads: MAXTHREADS
+    shell:
+        """
+        minimap2 -ax asm20 -t {threads} {input.fas} {input.reads} | \
+            samtools view -hb -@ {threads} - | \
+            samtools sort -@ {threads} - > {output.bam}
+        samtools index {output.bam}
+        """
+
+rule pilon_correct_the_references:
+    input:
+        fas = "tempfiles/nucleotide_sequences/unphased/phase{index}_transcripts_{fix}.fasta",
+        reads = "tempfiles/fastq/unphased/h{index}.flnc.{fix}.fastq.gz",
+        bam = "tempfiles/bamfiles/h{index}flnc_to_h{index}.{fix}.sorted.bam",
+        pilon = PILONJAR
+    output:
+        seq = "tempfiles/pilon/h{index}_flnc_to_{fix}_h{index}.pilon/h{index}_flnc_to_{fix}_h{index}.pilon.fasta",
+    threads: MAXTHREADS
+    params:
+        outdir = lambda wildcards: "tempfiles/pilon/h{0}_flnc_to_{1}_h{0}.pilon".format(wildcards.index, wildcards.fix),
+        outname = lambda wildcards: "h{0}_flnc_to_{1}_h{0}.pilon".format(wildcards.index, wildcards.fix)
+    shell:
+        """
+        java -Xmx100G -jar {input.pilon} --genome {input.fas} \
+            --unpaired {input.bam} \
+            --outdir {params.outdir} \
+            --output {params.outname} \
+            --threads {threads}
+        """
+
+rule rename_polished_transcripts:
+    input:
+        seq = "tempfiles/pilon/h{index}_flnc_to_{fix}_h{index}.pilon/h{index}_flnc_to_{fix}_h{index}.pilon.fasta"
+    output:
+        seq = "final_output/nucleotide_sequences/partly_phased/h{index}_pilon_{fix}.fasta",
+    threads: 1
+    params:
+        index = lambda wildcards: wildcards.index
+    shell:
+        """
+        sed "s/_pilon/.h{params.index}/g" {input.seq} > {output.seq}
+        """
  #
  ## just rename the sequences
  #for INDEX in 1 2
  #do
- #    sed -i "s/_pilon/.h${INDEX}/g" h${INDEX}flnc_to_${PREFIX}h${INDEX}.pilon/h${INDEX}flnc_to_${PREFIX}h${INDEX}.pilon.fasta
  #done
  #
  ## now map the FLNC reads back for QC
