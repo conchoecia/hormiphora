@@ -1,8 +1,32 @@
 #!/usr/bin/env python
+"""
+This program makes a table of protein sizes?
+"""
 
-seqs_orig="h1flnc_to_Jan24_annoth1.pilon/h1flnc_to_Jan24_annoth1.pilon.fasta"
-h1_fasta="prottrans_predict/h1.prottrans.fasta"
-h2_fasta="prottrans_predict/h2.prottrans.fasta"
+import sys
+
+# the length must be 6
+# 0 is the program name
+# 1 is one of the original nucleotide fasta files
+# 2 is the h1 pep file
+# 3 is the h2 pep file      (output)
+# 4 is the diff lengths csv (output)
+if len(sys.argv) != 4:
+    print("""# the length must be 4
+# 0 is the program name
+# 1 is one of the original nucleotide fasta files
+# 2 is the h1 pep file
+# 3 is the h2 pep file
+# 4 is the diff lengths csv   (output)
+# 5 is the model protein file (output)""")
+    sys.exit()
+
+seqs_orig        = sys.argv[1]
+h1_fasta         = sys.argv[2]
+h2_fasta         = sys.argv[3]
+diff_lengths_csv = sys.argv[4]
+model_pep_file   = sys.argv[5]
+
 
 seqlist = set()
 from Bio import SeqIO
@@ -22,7 +46,6 @@ for record in SeqIO.parse(seqs_orig, "fasta"):
 # get the number of genes on each chr
 for key in gene_dict:
     gene_dict[key] = max(gene_dict[key])
-
 
 # get the genes in the h1 file
 h1_dict = {x: -1 for x in seqlist}
@@ -44,7 +67,6 @@ convert_dict = {'h1': int, 'h2': int}
 df = df.fillna(-2)
 df = df.astype(convert_dict)
 
-
 df["keep"] = "NO"
 for i, row in df.iterrows():
     # both genes are the same length
@@ -63,7 +85,7 @@ for i, row in df.iterrows():
             df.at[i, "keep"] = "h2"
 
 print(df)
-df.to_csv("prottrans_predict/diff_lengths.txt", sep='\t')
+df.to_csv(diff_lengths_csv, sep='\t')
 
 # we need this later to sort the output
 df["isoform_index"] = -1
@@ -96,7 +118,7 @@ for i in range(1, num_c+1):
 for i in range(1, num_s+1):
     sort_list.append("sca{}".format(i))
 
-new_fasta = open("prottrans_predict/Hcv1.1.pep", "w")
+new_fasta = open(model_pep_file, "w")
 for this_c in sort_list:
     if this_c in gene_dict:
         for this_gene in range(1, gene_dict[this_c]+1):
