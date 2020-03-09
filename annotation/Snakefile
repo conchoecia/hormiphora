@@ -62,7 +62,6 @@ rule all:
         expand("final_output/protein_sequences/partly_phased/h{index}_{fix}.pep",
                fix = PREFIX, index = ["1","2"])
 
-
 rule gen_temporary_ref:
     input:
         ref = REF
@@ -340,16 +339,23 @@ rule translate_prots:
         python2 {input.ptp} -r -a 50 {input.seq} | \
             cut -d'_' -f1 > {output.pep}
         """
- #rm -rf prottrans_predict
- #mkdir prottrans_predict
- ### now run prottrans.py
- #for INDEX in 1 2
- #do
- #    python2 prottrans.py -r -a 50 h${INDEX}flnc_to_${PREFIX}h${INDEX}.pilon/h${INDEX}flnc_to_${PREFIX}h${INDEX}.pilon.fasta | cut -d'_' -f1 > prottrans_predict/h${INDEX}.prottrans.fasta
- #done
- #
- #python make_table_of_genes.py
- #gzip prottrans_predict/Hcv1.1.pep
+
+rule make_gene_comparison_table:
+    input:
+        fasta = "final_output/nucleotide_sequences/unphased/{fix}_transcripts.fasta",
+        peps = expand("final_output/protein_sequences/partly_phased/h{index}_{fix}.pep",
+                      fix = PREFIX, index = ["1", "2"]),
+        make_table_of_genes = "scripts/make_table_of_genes.py",
+    output:
+        diff_length_csvs = "final_output/protein_sequences/model/protein_size_table_{fix}.csv",
+        protein_model    = "final_output/protein_sequences/model/{fix}_model_proteins.pep.gz"
+    params:
+        protein_model    = lambda wildcards: "final_output/protein_sequences/model/{}_model_proteins.pep".format(wildcards.fix)
+    shell:
+        """
+        make_table_of_genes.py {input.fasta} {input.peps} {output.diff_length_csvs} {params.protein_model}
+        gzip {params.protein_model}
+        """
 
  ## this bit is all for phasing the transcripts
  ## map haplotype1 and haplotype2 back to the genome
