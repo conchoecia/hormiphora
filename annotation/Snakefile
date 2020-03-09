@@ -26,12 +26,14 @@ import gzip
 # PUT YOUR FILES HERE
 MAXTHREADS  = 90
 REF      = "raw_files/UCSC_Hcal_v1.fa.gz"
-PREFIX   = "Hcv1.1_20200309"
+#Prefix must not have underscores or periods
+PREFIX   = "Hcv1a1d20200309"
 CSV      = "raw_files/Hcal_annotation_v68.csv"
 FLNC     = "raw_files/GLO64_flnc.fastq.gz"
 PILONJAR = "raw_files/pilon-1.22.jar"
 RNAF     = "raw_files/Hc1_lib17_run1_ILL_RNAseq_R1.fastq.gz"
 RNAR     = "raw_files/Hc1_lib17_run1_ILL_RNAseq_R2.fastq.gz"
+# VCF file for the whole genome
 GVCF     = "tempfiles/phased.vcf"
 
 #get the chromosome order in order to fuse the vcf file
@@ -44,18 +46,22 @@ with gzip.open(REF, "rt") as f:
 
 rule all:
     input:
-        "tempfiles/phased.vcf",
-        "tempfiles/ref.fa",
         expand("final_output/{fix}.gff", fix = PREFIX),
         expand("final_output/nucleotide_sequences/unphased/{fix}_transcripts.fasta",fix = PREFIX),
-        expand("tempfiles/bamfiles/rna_to_transcripts/ill_to_{fix}_transcripts.sorted.bam", fix = PREFIX),
         expand("final_output/vcf_files/{fix}_transcripts.vcf", fix = PREFIX),
         expand("final_output/vcf_files/phased/{fix}_transcripts.phased.vcf", fix = PREFIX),
         # these are phased transcripts, but do not match the phase of the genome
-
+        #expand("tempfiles/nucleotide_sequences/unphased/phase{index}_transcripts_{fix}.fasta",
+        #       fix = PREFIX, index = ["1","2"]),
+        #expand("tempfiles/fastq/unphased/h{index}.flnc.{fix}.fastq.gz",
+        #       fix = PREFIX, index = [1,2]),
         # pilon polish the transcripts
         expand("final_output/nucleotide_sequences/partly_phased/h{index}_pilon_{fix}.fasta",
-               fix = PREFIX, index = [1,2])
+               fix = PREFIX, index = ["1", "2"]),
+        # translate proteins
+        expand("final_output/protein_sequences/partly_phased/h{index}_{fix}.pep",
+               fix = PREFIX, index = ["1","2"])
+
 
 rule gen_temporary_ref:
     input:
@@ -65,6 +71,29 @@ rule gen_temporary_ref:
     shell:
         """
         zcat {input.ref} > {output.tempref}
+        """
+
+rule gen_temporary_whole_genome_vcf:
+    """
+    This generates a vcf file for the whole genome.
+     These are from phase blocks as large as the chromosome sizes.
+    """
+    input:
+        vcfs = expand("./phasing/final_output/phased_by_chromosome/largest_blocks.hap.phased.{chrs}.vcf.gz", chrs = chroms)
+    output:
+        vcf = "tempfiles/whole_genome_phased.vcf"
+    shell:
+        """
+        COUNTER=0
+        for file in {input.vcfs}
+        do
+            if [ $COUNTER -eq 0 ]
+            then
+                zcat ${{file}} > {output.vcf}
+            else
+                zcat ${{file}} | grep -v '#' >> {output.vcf}
+            fi
+        done
         """
 
 rule gen_transcripts_from_spreadsheet:
@@ -200,8 +229,7 @@ rule generate_two_references_from_vcf:
         fas = "final_output/nucleotide_sequences/unphased/{fix}_transcripts.fasta",
         gzvcf = "final_output/vcf_files/phased/{fix}_transcripts.phased.vcf.gz",
     output:
-        fas1 = "tempfiles/nucleotide_sequences/unphased/phase1_transcripts_{fix}.fasta",
-        fas2 = "tempfiles/nucleotide_sequences/unphased/phase2_transcripts_{fix}.fasta",
+        fas = "tempfiles/nucleotide_sequences/unphased/phase{index}_transcripts_{fix}.fasta",
     params:
         outstem = lambda wildcards: "tempfiles/nucleotide_sequences/unphased",
         prefix = lambda wildcards: wildcards.fix
@@ -220,28 +248,21 @@ rule get_one_fastq_file_per_haplotig:
     split the haplotagged fastq file to correct later.
     """
     input:
-        fas1 = "tempfiles/nucleotide_sequences/unphased/phase1_transcripts_{fix}.fasta",
-        fas2 = "tempfiles/nucleotide_sequences/unphased/phase2_transcripts_{fix}.fasta",
+        fas = "tempfiles/nucleotide_sequences/unphased/phase{index}_transcripts_{fix}.fasta",
         flnc_bam = "tempfiles/bamfiles/rna_to_transcripts/flnc_haplotagged_to_{fix}_transcripts.sorted.bam",
         reads = FLNC
     output:
-        h1list  = "tempfiles/fastq/unphased/h1list.{fix}.reads.txt",
-        h2list  = "tempfiles/fastq/unphased/h2list.{fix}.reads.txt",
-        h1reads = "tempfiles/fastq/unphased/h1.flnc.{fix}.fastq.gz",
-        h2reads = "tempfiles/fastq/unphased/h2.flnc.{fix}.fastq.gz",
+        rlist  = "tempfiles/fastq/unphased/h{index}list.{fix}.reads.txt",
+        reads = "tempfiles/fastq/unphased/h{index}.flnc.{fix}.fastq.gz",
     params:
-        prefix = lambda wildcards: wildcards.fix
+        prefix = lambda wildcards: wildcards.fix,
+        dex = lambda wildcards: wildcards.index
     shell:
         """
-        # now get one fastq file per haplotig
-        for INDEX in 1 2
-        do
-            samtools view -F 4 {input.flnc_bam} | \
-                grep "HP:i:${{INDEX}}" | cut -f1 | sort | \
-                uniq > tempfiles/fastq/unphased/h${{INDEX}}list.{params.prefix}.reads.txt
-            seqtk subseq {input.reads} tempfiles/fastq/unphased/h${{INDEX}}list.{params.prefix}.reads.txt > tempfiles/fastq/unphased/h${{INDEX}}.flnc.{params.prefix}.fastq
-            gzip -f tempfiles/fastq/unphased/h${{INDEX}}.flnc.{params.prefix}.fastq
-        done
+        samtools view -F 4 {input.flnc_bam} | \
+            grep "HP:i:{params.dex}" | cut -f1 | sort | \
+            uniq > {output.rlist}
+        seqtk subseq {input.reads} {output.rlist} | gzip > {output.reads}
         """
 
 rule map_reads_to_transcripts:
@@ -295,12 +316,7 @@ rule rename_polished_transcripts:
         """
         sed "s/_pilon/.h{params.index}/g" {input.seq} > {output.seq}
         """
- #
- ## just rename the sequences
- #for INDEX in 1 2
- #do
- #done
- #
+# Didn't implement this in Snakefile. didn't seem necessary
  ## now map the FLNC reads back for QC
  #for INDEX in 1 2
  #do
@@ -311,7 +327,19 @@ rule rename_polished_transcripts:
  #   samtools sort -@ ${THREADS} - > h${INDEX}flnc_to_${PREFIX}h${INDEX}.pilon/h${INDEX}flnc_to_h1_pilon.sorted.bam
  #    samtools index h${INDEX}flnc_to_${PREFIX}h${INDEX}.pilon/h${INDEX}flnc_to_h1_pilon.sorted.bam
  #done
- #
+
+rule translate_prots:
+    input:
+        seq = "final_output/nucleotide_sequences/partly_phased/h{index}_pilon_{fix}.fasta",
+        ptp = "scripts/prottrans.py"
+    output:
+        pep = "final_output/protein_sequences/partly_phased/h{index}_{fix}.pep"
+    threads: 1
+    shell:
+        """
+        python2 {input.ptp} -r -a 50 {input.seq} | \
+            cut -d'_' -f1 > {output.pep}
+        """
  #rm -rf prottrans_predict
  #mkdir prottrans_predict
  ### now run prottrans.py
