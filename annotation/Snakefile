@@ -69,8 +69,16 @@ rule all:
                fix = PREFIX),
         # now phase the transcripts with the genome
         expand("final_output/phased/transcripts_shared_by_both_should_be_empty.{fix}.list",
-               fix = PREFIX)
-
+               fix = PREFIX),
+        expand("final_output/phased/transcripts_unique_to_h{index}.{fix}.list",
+               fix = PREFIX, index = ["1","2"]),
+        expand("final_output/phased/second_list_of_transcripts_shared_by_both_should_be_empty.{fix}.list",
+               fix = PREFIX),
+        # now output the phased peptides and nucleotides
+        expand("final_output/protein_sequences/phased/{fix}_h{index}_phased_protein.pep.gz",
+               fix = PREFIX, index = ["1","2"]),
+        expand("final_output/nucleotide_sequences/phased/{fix}_h{index}_phased_nucl.fasta.gz",
+               fix = PREFIX, index = ["1","2"])
 
 rule gen_temporary_ref:
     input:
@@ -452,40 +460,92 @@ rule list_of_transcripts_shared_by_both_haplotypes:
         """
         # a list of transcripts that are shared by both haplotypes. Should be nothing
         comm -12 {input.txt} > {output.txt}
+        """
+
+rule get_uniquely_assigned_transcripts:
+    input:
+        txt = "tempfiles/txt/h{index}_transcript_to_genome.{fix}.list",
+        transcript_list_unique = "scripts/transcript_list_unique.py"
+    output:
+        txt = "final_output/phased/transcripts_unique_to_h{index}.{fix}.list"
+    shell:
+        """
+        cat {input.txt} | \
+            python {input.transcript_list_unique} > {output.txt}
+        """
+
+rule second_list_of_phased_transcripts_shared_by_both_haplotypes:
+    input:
+        txt = expand("final_output/phased/transcripts_unique_to_h{index}.{fix}.list",
+                     fix = PREFIX, index = ["1","2"]),
+    output:
+        txt = "final_output/phased/second_list_of_transcripts_shared_by_both_should_be_empty.{fix}.list"
+    shell:
+        """
+        # a list of transcripts that are shared by both haplotypes. Should be nothing
+        comm -12 {input.txt} > {output.txt}
+        """
+
+rule temp_catd_phased_peps:
+    """
+    just makes a temporary file that contains both peptide files
+    """
+    input:
+        peps = expand("final_output/protein_sequences/partly_phased/h{index}_{fix}.pep",
+                     fix = PREFIX, index = ["1","2"]),
+    output:
+        temppeps = temp("tempfiles/temp_fused_phased.pep")
+    shell:
+        """
+        cat {input.peps} > {output.temppeps}
+        """
+
+rule make_final_phased_peps:
+    input:
+        temppeps = "tempfiles/temp_fused_phased.pep",
+        peplist = "final_output/phased/transcripts_unique_to_h{index}.{fix}.list"
+    output:
+        final_peptides = "final_output/protein_sequences/phased/{fix}_h{index}_phased_protein.pep.gz"
+    threads: 1
+    params:
+        index = lambda wildcards: wildcards.index
+    shell:
+        """
+        seqtk subseq {input.temppeps} {input.peplist} | \
+            cut -d'.' -f1,2,3,4,5 | \
+            bioawk -v var={params.index} -cfastx '{{printf(">%s.h%s\\n%s\\n", $name, var, $seq)}}' | \
+            gzip > {output.final_peptides}
 
         """
-#
-# # need to make a python script to parse this
-# # now get the transcripts that were able to be assigned uniquely to one haplotype or the other
-# for INDEX in 0 1
-# do
-#     cat phased_to_ref/haplotype${INDEX}_transcript.list | \
-#         python transcript_list_unique.py > phased_to_ref/tx_phased_to_h${INDEX}.list
-# done
-#
-# # double check a list of transcripts that are shared by both haplotypes. Should be nothing
-# comm -12 phased_to_ref/haplotype0_transcript.list phased_to_ref/haplotype1_transcript.list > phased_to_ref/transcripts_shared_by_both_2.list
-#
-# mkdir final_phased_transcripts
-# # generate transcript-specific haplotypes
-# for INDEX in 0 1
-# do
-#     OIND=1
-#     seqtk subseq h${OIND}flnc_to_${PREFIX}h${OIND}.pilon/h${OIND}flnc_to_${PREFIX}h${OIND}.pilon.fasta phased_to_ref/tx_phased_to_h${INDEX}.list > final_phased_transcripts/tx_phased_to_h${INDEX}.fasta
-##     seqtk subseq prottrans_predict/h${OIND}.prottrans.fasta phased_to_ref/tx_phased_to_h${INDEX}.list > final_phased_transcripts/tx_phased_to_h${INDEX}.pep
-##     OIND=2
-##     seqtk subseq h${OIND}flnc_to_${PREFIX}h${OIND}.pilon/h${OIND}flnc_to_${PREFIX}h${OIND}.pilon.fasta phased_to_ref/tx_phased_to_h${INDEX}.list >> final_phased_transcripts/tx_phased_to_h${INDEX}.fasta
-##     seqtk subseq prottrans_predict/h${OIND}.prottrans.fasta phased_to_ref/tx_phased_to_h${INDEX}.list >> final_phased_transcripts/tx_phased_to_h${INDEX}.pep
-# done
-#
-# #now fix the headers
-# mkdir final_phased_transcripts
-# # generate transcript-specific haplotypes
-# for INDEX in 0 1
-# do
-#     TDIR=final_phased_transcripts
-#     cut -d'.' -f1,2,3,4,5 ${TDIR}/tx_phased_to_h${INDEX}.fasta | bioawk -v var=${INDEX} -cfastx '{printf(">%s.h%s\n%s\n", $name, var, $seq)}' > ${TDIR}/tx_phased_to_h${INDEX}.correct_headers.fasta
-#     cut -d'.' -f1,2,3,4,5 ${TDIR}/tx_phased_to_h${INDEX}.pep   | bioawk -v var=${INDEX} -cfastx '{printf(">%s.h%s\n%s\n", $name, var, $seq)}' > ${TDIR}/tx_phased_to_h${INDEX}.correct_headers.pep
-#     cut -d'.' -f1,2,3,4,5 ${TDIR}/tx_phased_to_h${INDEX}.fasta | bioawk -v var=${INDEX} -cfastx '{printf(">%s.h%s\n%s\n", $name, var, $seq)}' > ${TDIR}/tx_phased_to_h${INDEX}.correct_headers.fasta
-#     cut -d'.' -f1,2,3,4,5 ${TDIR}/tx_phased_to_h${INDEX}.pep   | bioawk -v var=${INDEX} -cfastx '{printf(">%s.h%s\n%s\n", $name, var, $seq)}' > ${TDIR}/tx_phased_to_h${INDEX}.correct_headers.pep
-# done
+
+rule temp_catd_phased_nucls:
+    """
+    just makes a temporary file that contains both nucleotide files
+    """
+    input:
+        nucls = expand("final_output/nucleotide_sequences/partly_phased/h{index}_pilon_{fix}.fasta",
+                     fix = PREFIX, index = ["1","2"]),
+    output:
+        tempnucls = temp("tempfiles/temp_nucl_fused_phased.fasta")
+    shell:
+        """
+        cat {input.nucls} > {output.tempnucls}
+        """
+
+rule make_final_phased_nucls:
+    input:
+        tempnucl = "tempfiles/temp_nucl_fused_phased.fasta",
+        nucllist = "final_output/phased/transcripts_unique_to_h{index}.{fix}.list"
+    output:
+        final_nucs = "final_output/nucleotide_sequences/phased/{fix}_h{index}_phased_nucl.fasta.gz"
+    threads: 1
+    params:
+        index = lambda wildcards: wildcards.index
+    shell:
+        """
+        seqtk subseq {input.tempnucl} {input.nucllist} | \
+            cut -d'.' -f1,2,3,4,5 | \
+            bioawk -v var={params.index} -cfastx '{{printf(">%s.h%s\\n%s\\n", $name, var, $seq)}}' | \
+            gzip > {output.final_nucs}
+
+        """
