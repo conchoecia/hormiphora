@@ -11,8 +11,8 @@ import sys
 # 2 is the h1 pep file
 # 3 is the h2 pep file      (output)
 # 4 is the diff lengths csv (output)
-if len(sys.argv) != 4:
-    print("""# the length must be 4
+if len(sys.argv) != 6:
+    print("""# the length must be 6
 # 0 is the program name
 # 1 is one of the original nucleotide fasta files
 # 2 is the h1 pep file

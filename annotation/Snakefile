@@ -46,6 +46,7 @@ with gzip.open(REF, "rt") as f:
 
 rule all:
     input:
+        "tempfiles/ref.fa",
         expand("final_output/{fix}.gff", fix = PREFIX),
         expand("final_output/nucleotide_sequences/unphased/{fix}_transcripts.fasta",fix = PREFIX),
         expand("final_output/vcf_files/{fix}_transcripts.vcf", fix = PREFIX),
@@ -66,39 +67,21 @@ rule all:
                fix = PREFIX),
         expand("final_output/protein_sequences/model/{fix}_model_proteins.pep.gz",
                fix = PREFIX),
+        # now phase the transcripts with the genome
+        expand("final_output/phased/transcripts_shared_by_both_should_be_empty.{fix}.list",
+               fix = PREFIX)
+
 
 rule gen_temporary_ref:
     input:
         ref = REF
     output:
-        tempref = temp("tempfiles/ref.fa")
+        tempref = "tempfiles/ref.fa"
     shell:
         """
         zcat {input.ref} > {output.tempref}
         """
 
-rule gen_temporary_whole_genome_vcf:
-    """
-    This generates a vcf file for the whole genome.
-     These are from phase blocks as large as the chromosome sizes.
-    """
-    input:
-        vcfs = expand("./phasing/final_output/phased_by_chromosome/largest_blocks.hap.phased.{chrs}.vcf.gz", chrs = chroms)
-    output:
-        vcf = "tempfiles/whole_genome_phased.vcf"
-    shell:
-        """
-        COUNTER=0
-        for file in {input.vcfs}
-        do
-            if [ $COUNTER -eq 0 ]
-            then
-                zcat ${{file}} > {output.vcf}
-            else
-                zcat ${{file}} | grep -v '#' >> {output.vcf}
-            fi
-        done
-        """
 
 rule gen_transcripts_from_spreadsheet:
     """
@@ -358,7 +341,7 @@ rule make_gene_comparison_table:
         protein_model    = lambda wildcards: "final_output/protein_sequences/model/{}_model_proteins.pep".format(wildcards.fix)
     shell:
         """
-        make_table_of_genes.py {input.fasta} {input.peps} {output.diff_length_csvs} {params.protein_model}
+        python {input.make_table_of_genes} {input.fasta} {input.peps} {output.diff_length_csvs} {params.protein_model}
         gzip {params.protein_model}
         """
 
@@ -371,7 +354,7 @@ rule map_phased_transcripts_to_genome:
         transcripts = "final_output/nucleotide_sequences/partly_phased/h{index}_pilon_{fix}.fasta",
         genome = "tempfiles/ref.fa"
     output:
-        bam = "tempfiles/bamfiles/trnascripts_to_genome/pilon_h{index}_to_ref.{fix}.sorted.bam"
+        bam = "tempfiles/bamfiles/transcripts_to_genome/pilon_h{index}_to_ref.{fix}.sorted.bam"
     threads: MAXTHREADS
     shell:
         """
@@ -381,36 +364,96 @@ rule map_phased_transcripts_to_genome:
         samtools index {output.bam}
         """
 
-#rule merge_bams:
-#    """
-#    just merge the bams from the transcripts to phase them
-#    """
-#    input:
-#        bams = expand("tempfiles/bamfiles/trnascripts_to_genome/pilon_h{index}_to_ref.{fix}.sorted.bam", fix = PREFIX, index = ["1", "2"]),
-#    output:
-#        merged = "tempfiles/bamfiles/trnascripts_to_genome/pilon_merged_to_ref.{fix}.sorted.bam"
-#    threads: 1
-#    shell:
-#        """
-#        """
+rule merge_bams_from_transcripts:
+    """
+    just merge the bams from the transcripts to phase them
+    """
+    input:
+        bams = expand("tempfiles/bamfiles/transcripts_to_genome/pilon_h{index}_to_ref.{fix}.sorted.bam", fix = PREFIX, index = ["1", "2"]),
+    output:
+        merged = "tempfiles/bamfiles/transcripts_to_genome/pilon_merged_to_ref.{fix}.sorted.bam",
+        index = "tempfiles/bamfiles/transcripts_to_genome/pilon_merged_to_ref.{fix}.sorted.bam.bai"
 
- # merge the bams
- #samtools merge -f phased_to_ref/phased_transcripts_to_ref.bam phased_to_ref/pilon_tx_1_to_ref.sorted.bam phased_to_ref/pilon_tx_2_to_ref.sorted.bam
- #samtools index phased_to_ref/phased_transcripts_to_ref.bam
+    threads: 1
+    shell:
+        """
+        samtools merge -f {output.merged} {input.bams}
+        samtools index {output.merged}
+        """
 
- #cp ${GVCF} temp_whole_genome.vcf
- #bgzip -c temp_whole_genome.vcf > temp_whole_genome.vcf.gz
- #tabix -p vcf temp_whole_genome.vcf.gz
+rule gen_temporary_whole_genome_vcf:
+    """
+    This generates a vcf file for the whole genome.
+     These are from phase blocks as large as the chromosome sizes.
+    """
+    input:
+        vcfs = expand("../phasing/final_output/phased_by_chromosome/largest_blocks.hap.phased.{chrs}.vcf.gz", chrs = chroms)
+    output:
+        gz = "tempfiles/whole_genome_phased.vcf.gz",
+        tbi = "tempfiles/whole_genome_phased.vcf.gz.tbi"
+    params:
+        vcf = "tempfiles/whole_genome_phased.vcf"
+    shell:
+        """
+        set +e
+        COUNTER=0
+        for file in {input.vcfs}
+        do
+            if [ $COUNTER -eq 0 ]
+            then
+                COUNTER=1
+                zcat ${{file}} > {params.vcf}
+            else
+                zcat ${{file}} | grep -v '#' >> {params.vcf}
+            fi
+        done
 
- #whatshap haplotag --ignore-read-groups -o phased_to_ref/all_transcripts_haplotag.bam \
- #    --reference ${REF} temp_whole_genome.vcf.gz phased_to_ref/phased_transcripts_to_ref.bam
+        bgzip -c {params.vcf} > {output.gz}
+        tabix -p vcf {output.gz}
+        set -e
+        """
 
-# # now make a list of things that were phased
-# samtools view phased_to_ref/all_transcripts_haplotag.bam | grep 'HP:i:1' | cut -f1 | sort | uniq | sort > phased_to_ref/haplotype0_transcript.list
-# samtools view phased_to_ref/all_transcripts_haplotag.bam | grep 'HP:i:2' | cut -f1 | sort | uniq | sort > phased_to_ref/haplotype1_transcript.list
-#
-# # a list of transcripts that are shared by both haplotypes. Should be nothing
-# comm -12 phased_to_ref/haplotype0_transcript.list phased_to_ref/haplotype1_transcript.list > phased_to_ref/transcripts_shared_by_both.list
+rule haplotag_transcripts:
+    input:
+        gz = "tempfiles/whole_genome_phased.vcf.gz",
+        tbi = "tempfiles/whole_genome_phased.vcf.gz.tbi",
+        merged = "tempfiles/bamfiles/transcripts_to_genome/pilon_merged_to_ref.{fix}.sorted.bam",
+        index = "tempfiles/bamfiles/transcripts_to_genome/pilon_merged_to_ref.{fix}.sorted.bam.bai",
+        ref = "tempfiles/ref.fa"
+    output:
+        bam = "tempfiles/bamfiles/transcripts_to_genome/haplotaged_pilon_to_ref.{fix}.sorted.bam"
+    shell:
+        """
+        whatshap haplotag --ignore-read-groups -o {output.bam} \
+            --reference {input.ref} {input.gz} {input.merged}
+        """
+
+rule make_phased_list:
+    input:
+        bam = "tempfiles/bamfiles/transcripts_to_genome/haplotaged_pilon_to_ref.{fix}.sorted.bam"
+    output:
+        txt = "tempfiles/txt/h{index}_transcript_to_genome.{fix}.list"
+    threads: 1
+    params:
+        index = lambda wildcards: wildcards.index
+    shell:
+        """
+        samtools view {input.bam} | grep 'HP:i:{params.index}' | \
+            cut -f1 | sort | uniq | sort > {output.txt}
+        """
+
+rule list_of_transcripts_shared_by_both_haplotypes:
+    input:
+        txt = expand("tempfiles/txt/h{index}_transcript_to_genome.{fix}.list",
+                     fix = PREFIX, index = ["1","2"]),
+    output:
+        txt = "final_output/phased/transcripts_shared_by_both_should_be_empty.{fix}.list"
+    shell:
+        """
+        # a list of transcripts that are shared by both haplotypes. Should be nothing
+        comm -12 {input.txt} > {output.txt}
+
+        """
 #
 # # need to make a python script to parse this
 # # now get the transcripts that were able to be assigned uniquely to one haplotype or the other
