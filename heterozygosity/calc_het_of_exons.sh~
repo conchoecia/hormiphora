@@ -1,0 +1,13 @@
+#!/bin/bash
+GFF=/bigdata/user/darrin/hormiphora/annotation/hormiphora/annotation/Hcv1a1d20200309_release/Hcv1a1d20200309.gff.gz
+#INTRONSCRIPT=/bigdata/user/darrin/hormiphora/annotation/hormiphora/intergenic_antisense/gff_to_intron_bed.py
+#BAM=/bigdata/user/darrin/hormiphora/calculate_heterozygosity/shot_to_assem.sorted.bam
+#REF=/bigdata/user/darrin/hormiphora/assembly_versions/UCSC_Hcal_v1.fa
+#PTA=/home/dschultz/git/chep/bin/pileup_to_array
+#CP=/home/dschultz/git/chep/bin/chep_plot
+
+#get the exons
+zcat ${GFF} | grep 'exon' > exons.gff
+#exon bed
+gff2bed -i gff < exons.gff > exons.bed
+#samtools mpileup -f ${ASSEM} shot_to_assem.sorted.bam
