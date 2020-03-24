@@ -27,8 +27,8 @@ import gzip
 MAXTHREADS  = 90
 REF      = "raw_files/UCSC_Hcal_v1.fa.gz"
 #Prefix must not have underscores or periods
-PREFIX   = "Hcv1a1d20200309"
-CSV      = "raw_files/Hcal_annotation_v68.csv"
+PREFIX   = "Hcv1a1d20200323"
+CSV      = "raw_files/Hcal_annotation_v70.csv"
 FLNC     = "raw_files/GLO64_flnc.fastq.gz"
 PILONJAR = "raw_files/pilon-1.22.jar"
 RNAF     = "raw_files/Hc1_lib17_run1_ILL_RNAseq_R1.fastq.gz"
@@ -99,8 +99,8 @@ rule gen_transcripts_from_spreadsheet:
     input:
         ref = "tempfiles/ref.fa",
         csv = CSV,
-        has = "horm_annotation_script.py",
-        tc  = "transcript_classes.py"
+        has = "scripts/horm_annotation_script.py",
+        tc  = "scripts/transcript_classes.py"
     output:
         gff = "final_output/{fix}.gff"
     shell:
