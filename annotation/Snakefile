@@ -27,8 +27,8 @@ import gzip
 MAXTHREADS  = 90
 REF      = "raw_files/UCSC_Hcal_v1.fa.gz"
 #Prefix must not have underscores or periods
-PREFIX   = "Hcv1a1d20200323"
-CSV      = "raw_files/Hcal_annotation_v70.csv"
+PREFIX   = "Hcv1a1d20200324"
+CSV      = "raw_files/Hcal_annotation_v74.csv"
 FLNC     = "raw_files/GLO64_flnc.fastq.gz"
 PILONJAR = "raw_files/pilon-1.22.jar"
 RNAF     = "raw_files/Hc1_lib17_run1_ILL_RNAseq_R1.fastq.gz"
