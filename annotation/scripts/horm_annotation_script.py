@@ -11,10 +11,6 @@ def parse_file_keyword(thisfile, keyword):
     print("  - found {} genes encompassing {} isoforms".format(
         len(return_me.GTT), sum([len(return_me.GTT[key]) for key in return_me.GTT])),
           file=sys.stderr)
-    if keyword == "manual":
-        for gene in return_me.GTT:
-            for tx in return_me.GTT[gene]:
-                print("    - {}".format(tx), file=sys.stderr)
     return(return_me)
 
 def main():
@@ -60,7 +56,6 @@ def main():
         print(indices, file=sys.stderr)
         raise Exception("marked for deletion but missing stringtie")
 
-
     # PASSED CHECKS. NOW ANNOTATE.
     # make a dict to store the GFF files
     GFFs = {}
@@ -102,7 +97,7 @@ def main():
         print(print_message, file = sys.stderr)
         raise IOError("See above message.")
 
-
+    # this takes all the information and prints out the spreadsheet
     tc.parse_spreadsheet(df, GFFs, column_name_to_GFF_map)
 
 if __name__== "__main__":

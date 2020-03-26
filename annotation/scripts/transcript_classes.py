@@ -64,10 +64,10 @@ class gffFile:
                 for line in f:
                     nl = ""
                     if isgz:
-                        nl = line.decode("utf-8").strip()
+                        nl = line.decode("utf-8")
                     else:
-                        nl=line.strip()
-                    if nl:
+                        nl=line
+                    if nl and (nl.strip() != ""):
                         splitd = nl.split('\t')
                         #print("printing nl: ", nl, file=sys.stderr)
                         #print("printing splitd: ", splitd, file=sys.stderr)
