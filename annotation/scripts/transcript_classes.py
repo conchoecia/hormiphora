@@ -335,6 +335,10 @@ def parse_spreadsheet(df, GFFs, CTGm):
                         for line in lines_split:
                             if line.strip():
                                 gff_split = line.split('\t')
+                                if len(gff_split) != 9:
+                                    print("erroneous line: ", file = sys.stderr)
+                                    print(gff_split, file = sys.stderr)
+                                    raise IOError("This line was too long.")
                                 #get the info if the gene is spliced in an intron
                                 SII=""
                                 if not pd.isnull(row["spliced_in_intron"]):
