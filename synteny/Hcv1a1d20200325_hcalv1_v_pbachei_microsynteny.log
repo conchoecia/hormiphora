@@ -1,0 +1,32 @@
+# Running command:
+/home/wrf/git/genomeGTFtools/microsynteny.py -q Hcv1a1d20200325.gff -d /home/wrf/genomes/pleurobrachia_bachei/pbachei_03_filtered_gene_models_transcripts_collapsed_only.gff -b Hcv1a1d20200325_model_proteins.pep.vs_pbachei.tab -G
+# Parsing Hcv1a1d20200325.gff  Sat Mar 28 08:44:14 2020
+# Found 29923 genes  Sat Mar 28 08:44:14 2020
+# Parsing /home/wrf/genomes/pleurobrachia_bachei/pbachei_03_filtered_gene_models_transcripts_collapsed_only.gff  Sat Mar 28 08:44:14 2020
+# Found 7014 genes  Sat Mar 28 08:44:14 2020
+# Parsing tabular blast output Hcv1a1d20200325_model_proteins.pep.vs_pbachei.tab  Sat Mar 28 08:44:14 2020
+# Found blast hits for 6153 query sequences  Sat Mar 28 08:44:14 2020
+# Removed 414 hits by evalue, kept 27665 hits
+# Names parsed as Hcv1.1.sca23.g1.i1 from Hcv1.1.sca23.g1.i1, and scaffold907_1_size33252_gene_8440Barcelona from scaffold907_1_size33252_gene_8440Barcelona
+# make GFF output: True
+# searching for colinear blocks of at least 3 genes, with up to 5 intervening genes
+New longest block blk-1 of 7 on c1
+New longest block blk-3 of 11 on c1
+New longest block blk-16 of 12 on c1
+New longest block blk-123 of 15 on c2
+# Found 399 possible split genes  Sat Mar 28 08:44:14 2020
+# Most genes on a query scaffold was 3809  Sat Mar 28 08:44:14 2020
+# Found 298 total putative synteny blocks for 1281 genes  Sat Mar 28 08:44:14 2020
+# Average block is 4.30, longest block was 15 genes  Sat Mar 28 08:44:14 2020
+# Total block span was 9733811 bases  Sat Mar 28 08:44:14 2020
+3 131
+4 77
+5 43
+6 19
+7 7
+8 6
+9 8
+10 1
+11 3
+12 2
+15 1

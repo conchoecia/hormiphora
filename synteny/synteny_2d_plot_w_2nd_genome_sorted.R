@@ -74,22 +74,26 @@ pointsize = log10(as.numeric(pointsdata[,8])) / 4
 
 
 matchcounts_by_scaf = table(pointsdata[,3], pointsdata[,5])
-matchcounts_by_scaf
+#matchcounts_by_scaf
 match_by_ml = t(matchcounts_by_scaf)
 max_by_ml = apply(match_by_ml,1,max)
 sum_by_ml = apply(match_by_ml,1,sum)
-hist(max_by_ml/sum_by_ml, breaks=20, xlim=c(0,1), col="#2345a9")
+#hist(max_by_ml/sum_by_ml, breaks=20, xlim=c(0,1), col="#2345a9")
+pdf(file="~/genomes/hormiphora_californensis/hormiphora/synteny/hcalv1_v_ml2_2d_synteny_points.most_to_scaf.pdf", width=6, height=6)
+par(mar=c(4.5,4.5,3,1))
+plot(max_by_ml/sum_by_ml,sum_by_ml, type='p', pch=21, bg="#2345c9aa",xlab="Most to single Hcal scaffold/total", ylab="Num genes on Mlei scaffold", main="Hcal vs Mlei most hits to a single scaffold", cex.lab=1.4, cex.axis=1.4, cex.main=1.5, cex=1.5)
+dev.off()
 
 top_match_scaf = row.names(matchcounts_by_scaf)[apply(matchcounts_by_scaf, 2, which.max)]
-top_match_scaf
+#top_match_scaf
 top_match_scaf_index = match(top_match_scaf, scafdata1[,2])
-top_match_scaf_index
+#top_match_scaf_index
 sorted_top_match_index = sort(top_match_scaf_index, index.return=TRUE)
-sorted_top_match_index
+#sorted_top_match_index
 scafname_sorted_by_match = colnames(matchcounts_by_scaf)[sorted_top_match_index$ix]
-scafname_sorted_by_match
+#scafname_sorted_by_match
 scafsize_sorted_by_match = scafdata2[,4][match(scafname_sorted_by_match, scafdata2[,2])]
-scafsize_sorted_by_match
+#scafsize_sorted_by_match
 sorted_offsets1 = c(0, cumsum(scafdata1[,4]) )
 sorted_offsets2 = c(0, cumsum(scafsize_sorted_by_match)[1:(length(scafsize_sorted_by_match)-1)])
 
