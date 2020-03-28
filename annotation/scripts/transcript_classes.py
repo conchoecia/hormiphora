@@ -2,6 +2,7 @@
 import gzip
 import os
 import pandas as pd
+import numpy as np
 import sys
 pd.options.display.width = 0
 
@@ -39,6 +40,7 @@ class gffFile:
         self.IDTS = {}
         # GTT genes to transcripts
         self.GTT  = {}
+        #not sure what this is
         self.used_isoforms = dict()
         self.filename = filename
         self.filetype = filetype
@@ -65,101 +67,128 @@ class gffFile:
                         nl = line.decode("utf-8")
                     else:
                         nl=line
-                    splitd = nl.split('\t')
-                    if str(splitd[2]).strip() in ["transcript", "mRNA"]:
-                        # we have just found a new transcript.
-                        # make sure that the input is legal
-                        if splitd[1] in  ["pinfish", "StringTie", "custom"]:
-                            if not splitd[8].split(';')[0].startswith("ID="):
-                                # should start with ID=
-                                print(line, file=sys.stderr)
-                                raise Exception("""There is some input error. We found
-                                a line that doesn't have field 9 starting with ID=.
-                                all pinfish/StringTie transcripts start with this""")
-                        elif splitd[1] in ["PacBio"]:
-                            if not splitd[8].split(';')[0].startswith("gene_id"):
-                                # should start with gene_id
-                                print(line, file=sys.stderr)
-                                raise Exception("""There is some input error. We found
-                                a line that doesn't have field 9 starting with gene_id.
-                                all PacBio transcripts start with this""")
-
-                        # now that we made sure the input is legal, let's parse
-                        #  the gene id and the transcript ID.
-                        if splitd[1] == "pinfish":
-                            tID = splitd[8].split(';')[0].replace("ID=","").strip()
-                            gID = tID
-                        elif splitd[1] in ["StringTie", "AUGUSTUS", "custom"]:
-                            tID = splitd[8].split(';')[0].replace("ID=","").strip()
-                            gID = ".".join(tID.split('.')[0:-1])
-                        elif splitd[1] == "PacBio":
-                            tID = splitd[8].split(';')[1].replace("transcript_id","").strip().replace("\"", "")
-                            gID = splitd[8].split(';')[0].replace("gene_id","").strip().replace("\"", "")
-                        if tID in self.IDTS:
-                            raise Exception("""This transcript is already in the map.
-                                        we shouldn't see it here yet.""")
-                        # Now that we have the transcript ID and the geneID
-                        #  store them in the instance
-                        if splitd[1] == "pinfish":
-                            # every pinfish transcript is also its own gene.
-                            #  each transcript just has its own hash.
-                            assert tID not in self.IDTS
-                            assert gID not in self.GTT
-                            self.GTT[gID] = [tID]
-                        elif splitd[1] in ["StringTie", "PacBio", "AUGUSTUS"]:
-                            assert tID not in self.IDTS
-                            if gID not in self.GTT:
-                                self.GTT[gID] = [tID]
+                    if nl and (nl.strip() != ""):
+                        splitd = nl.split('\t')
+                        #print("printing nl: ", nl, file=sys.stderr)
+                        #print("printing splitd: ", splitd, file=sys.stderr)
+                        if str(splitd[2]).strip() in ["transcript", "mRNA"]:
+                            # we have just found a new transcript.
+                            # make sure that the input is legal
+                            if splitd[1] in  ["pinfish", "StringTie", "custom", "AUGUSTUS"]:
+                                if not splitd[8].split(';')[0].startswith("ID="):
+                                    # should start with ID=
+                                    print(line, file=sys.stderr)
+                                    raise Exception("""There is some input error. We found
+                                    a line that doesn't have field 9 starting with ID=.
+                                    all pinfish/StringTie transcripts start with this""")
+                            elif splitd[1] in ["PacBio"]:
+                                if not splitd[8].split(';')[0].startswith("gene_id"):
+                                    # should start with gene_id
+                                    print(line, file=sys.stderr)
+                                    raise Exception("""There is some input error. We found
+                                    a line that doesn't have field 9 starting with gene_id.
+                                    all PacBio transcripts start with this""")
                             else:
-                                self.GTT[gID].append(tID)
-                        self.IDTS[tID] = nl
-                    elif splitd[2] == "exon":
-                        # we have found an exon for this transcript. We should
-                        #  have already found the transcript itself.
+                                print(nl, file=sys.stderr)
+                                raise IOError("Encountered some unknown while parsing gene type.")
 
-                        #make sure that the input is legal
-                        if splitd[1] in  ["pinfish"]:
-                            if not splitd[8].split(';')[0].startswith("Parent="):
-                                print(line, file=sys.stderr)
-                                raise Exception("""There is some input error. We found
-                              a line that doesn't have field 9 starting with Parent=.
-                                all pinfish exons start with this""")
-                        elif splitd[1] in  ["StringTie"]:
-                            if not splitd[8].split(';')[0].startswith("ID="):
-                                print(line, file=sys.stderr)
-                                raise Exception("""There is some input error. We found
-                              a line that doesn't have field 9 starting with ID=.
-                                all pinfish exons start with this""")
-                        elif splitd[1] in  ["PacBio"]:
-                            if not splitd[8].split(';')[0].startswith("gene_id \""):
-                                print(line, file=sys.stderr)
-                                raise Exception("""There is some input error. We found
-                              a line that doesn't have field 9 starting with ID=.
-                                all pinfish exons start with this""")
-                        elif splitd[1] in ["AUGUSTUS"]:
-                            # I don't want to implement for a single gene
-                            pass
+                            # now that we made sure the input is legal, let's parse
+                            #  the gene id and the transcript ID.
+                            if splitd[1] == "pinfish":
+                                tID = splitd[8].split(';')[0].replace("ID=","").strip()
+                                gID = tID
+                            elif splitd[1] in ["StringTie", "AUGUSTUS", "custom"]:
+                                tID = splitd[8].split(';')[0].replace("ID=","").strip()
+                                gID = ".".join(tID.split('.')[0:-1])
+                            elif splitd[1] == "PacBio":
+                                tID = splitd[8].split(';')[1].replace("transcript_id","").strip().replace("\"", "")
+                                gID = splitd[8].split(';')[0].replace("gene_id","").strip().replace("\"", "")
+                            else:
+                                raise IOError("Encountered some unknown while parsing gene id.")
 
-                        # now that we made sure the input is legal, let's parse
-                        #  the gene id and the transcript ID.
-                        if splitd[1] == "pinfish":
-                            tID = splitd[8].split(';')[0].replace("Parent=","").strip()
-                        elif str(splitd[1]).strip() in ["StringTie", "AUGUSTUS"]:
-                            tID = splitd[8].split(';')[1].replace("Parent=","").strip()
-                        elif splitd[1] == "PacBio":
-                            tID = splitd[8].split(';')[1].replace("transcript_id","").strip().replace("\"", "")
+                            if tID in self.IDTS:
+                                raise Exception("""This transcript is already in the map.
+                                            we shouldn't see it here yet.""")
+                            # Now that we have the transcript ID and the geneID
+                            #  store them in the instance
+                            if splitd[1] == "pinfish":
+                                # every pinfish transcript is also its own gene.
+                                #  each transcript just has its own hash.
+                                assert tID not in self.IDTS
+                                assert gID not in self.GTT
+                                self.GTT[gID] = [tID]
+                            elif splitd[1] in ["StringTie", "PacBio", "AUGUSTUS", "custom"]:
+                                assert tID not in self.IDTS
+                                if gID not in self.GTT:
+                                    self.GTT[gID] = [tID]
+                                else:
+                                    self.GTT[gID].append(tID)
+                            self.IDTS[tID] = nl
+                        elif splitd[2] == "exon":
+                            # we have found an exon for this transcript. We should
+                            #  have already found the transcript itself.
 
-                        # Now that we have the transcript ID
-                        #  store them in the instance
-                        if tID not in self.IDTS:
-                            # we should have already seen the transcript
-                            #  if the gff file is sorted properly
-                            print("offending ID: ", tID, file=sys.stderr)
-                            print("offending file:", thisfile, file = sys.stderr)
-                            raise Exception("""For some reason we found an exon for a
-                            transcript before we found the transcript itself.
-                            The GFF file should have all of the transcripts first.""")
-                        self.IDTS[tID] += nl
+                            #make sure that the input is legal
+                            if splitd[1] in  ["pinfish"]:
+                                if not splitd[8].split(';')[0].startswith("Parent="):
+                                    print(line, file=sys.stderr)
+                                    raise Exception("""There is some input error. We found
+                                  a line that doesn't have field 9 starting with Parent=.
+                                    all pinfish exons start with this""")
+                            elif splitd[1] in  ["StringTie", "AUGUSTUS"]:
+                                if not splitd[8].split(';')[0].startswith("ID="):
+                                    print(line, file=sys.stderr)
+                                    raise Exception("""There is some input error. We found
+                                  a line that doesn't have field 9 starting with ID=.
+                                    all StringTie and AUGUSTUS exons start with this""")
+                            elif splitd[1] in  ["PacBio"]:
+                                if not splitd[8].split(';')[0].startswith("gene_id \""):
+                                    print(line, file=sys.stderr)
+                                    raise Exception("""There is some input error. We found
+                                  a line that doesn't have field 9 starting with gene_id.
+                                  all PacBio exons start with this""")
+                            elif splitd[1] in ["custom"]:
+                                # the input format is variable, but should have parent
+                                if "Parent=" not in splitd[8]:
+                                    print(line, file=sys.stderr)
+                                    raise Exception("""There is some input error. We found
+                                    a line for a custom gene that doesn't have field 9 
+                                    containing Parent=
+                                    all custom exons contain this""")
+                            else:
+                                raise IOError("Encountered some unknown while parsing exons")
+
+                            # now that we made sure the input is legal, let's parse
+                            #  the gene id and the transcript ID.
+                            # this block is messy and needs to be reworked and refactored. Redundant code.
+                            if splitd[1] == "pinfish":
+                                tID = splitd[8].split(';')[0].replace("Parent=","").strip()
+                            elif str(splitd[1]).strip() in ["StringTie", "AUGUSTUS"]:
+                                tID = splitd[8].split(';')[1].replace("Parent=","").strip()
+                            elif splitd[1] == "PacBio":
+                                tID = splitd[8].split(';')[1].replace("transcript_id","").strip().replace("\"", "")
+                            elif splitd[1] == "custom":
+                                temp = splitd[8].split(';')
+                                parent_index = 0
+                                for i in range(len(temp)):
+                                    if "Parent=" in temp[i]:
+                                        parent_index=i
+                                tID = temp[parent_index].replace("Parent=","").strip()
+                            else:
+                                raise IOError("Encountered some unknown while parsing transcript IDs")
+
+
+                            # Now that we have the transcript ID
+                            #  store them in the instance
+                            if tID not in self.IDTS:
+                                # we should have already seen the transcript
+                                #  if the gff file is sorted properly
+                                print("offending ID: ", tID, file=sys.stderr)
+                                print("offending file:", thisfile, file = sys.stderr)
+                                raise Exception("""For some reason we found an exon for a
+                                transcript before we found the transcript itself.
+                                The GFF file should have all of the transcripts first.""")
+                            self.IDTS[tID] += nl
 
 def DoL_empty(DoL):
     """
@@ -198,6 +227,14 @@ def parse_spreadsheet(df, GFFs, CTGm):
             this_chromosome = row_chr
             gene_counter = 0
 
+        #make sure that the gene_name string doesn't have any illegal characters
+        illegal_chars = [",", ";", "="]
+        if type(row["gene_name"]) == str:
+            for thischar in illegal_chars:
+                #print("going to print row",file=sys.stderr)
+                #print(row, file=sys.stderr)
+                if thischar in row["gene_name"]:
+                    raise IOError("{}\nthis row's gene_name field has an illegal character: {}".format(row, thischar))
         #NOW WE PARSE THE ROW - EACH ROW IS A GENE
         # first we check if this row has a delete flag or not.
 
@@ -298,6 +335,10 @@ def parse_spreadsheet(df, GFFs, CTGm):
                         for line in lines_split:
                             if line.strip():
                                 gff_split = line.split('\t')
+                                if len(gff_split) != 9:
+                                    print("erroneous line: ", file = sys.stderr)
+                                    print(gff_split, file = sys.stderr)
+                                    raise IOError("This line was too long.")
                                 #get the info if the gene is spliced in an intron
                                 SII=""
                                 if not pd.isnull(row["spliced_in_intron"]):
@@ -365,6 +406,8 @@ def parse_spreadsheet(df, GFFs, CTGm):
                     str(gene_coords[1]), ".",
                     strand, ".",
                     "ID={0};Name={0}".format(this_gene)]
+            if type(row["gene_name"]) == str:
+                gene[-1] += ";Description={}".format(row["gene_name"].strip())
             print("\t".join(gene))
             print(print_buffer, end="")
     # now that everything has been parsed, we can check to see if any GFFs
@@ -424,69 +467,28 @@ def sensible_chromosomes(df, chr_list):
             indices.append(i)
     return indices
 
-def each_row_has_something(df):
+def each_row_has_something(df, it_with_columns):
     # Now make sure that each row has something in stringtie_id,
     #  isoseq_hq_id, pinfish_id, or isoseq_singleton_id
     # don't count rows that also have isoseq reads containing ID m64069
     df["one_row_one_gene"] = "none"
     for i, row in df.iterrows():
-        C1_ST = False #stringtie
-        C2_IS = False # isoseq
-        C3_PF = False # pinfish
-        C4_SI = False # singletons
-        C5_CO = False # comment
-        C6_AU = False # augustus
-        C7_SM = False # stringtie_manual
-        if type(row["stringtie_id"]) == str:
-            C1_ST = row["stringtie_id"].strip().lower() != ""
-        if type(row["isoseq_hq_id"]) == str:
-            C2_IS = row["isoseq_hq_id"].strip().lower() != ""
-        if type(row["pinfish_id"]) == str:
-            C3_PF = row["pinfish_id"].strip().lower() != ""
-        if type(row["isoseq_singleton_id"]) == str:
-            C4_SI = row["isoseq_singleton_id"].strip().lower() != ""
-        if type(row["augustus"]) == str:
-            C6_AU = row["augustus"].strip().lower() != ""
-        if type(row["stringtie_manual"]) == str:
-            C7_SM = row["stringtie_manual"].strip().lower() != ""
-
+        hasone = False
+        for colname in it_with_columns:
+            if type(row[colname]) == str:
+                if row[colname].strip().lower() != "":
+                    hasone = True
+        # what is this doing? I don't know exactly
         if type(row["comment"]) == str:
             for this_thing in ["m64069", "manual", "augustus"]:
                 if this_thing in row["comment"].strip().lower():
-                    C5_CO = True
-
-        df.at[i,'one_row_one_gene'] = C1_ST or C2_IS or C3_PF or C4_SI or C5_CO or C6_AU or C7_SM
+                    hasone = True
+        df.at[i,'one_row_one_gene'] = True
 
     t1 = df.loc[df['one_row_one_gene'] == False, ]
-    print(t1, file=sys.stderr)
-    assert len(t1) == 0
-    return(df)
-
-# print out list of genes that still need a transcript
-def still_needs_transcript(df):
-    # Now get a list of genes left over that still need annotation from reads
-    #  m64069
-    df["only_minimap"] = "none"
-    for i, row in df.iterrows():
-        C1_ST = False
-        C2_IS = False
-        C3_PF = False
-        C4_SI = False
-        C5_CO = False
-        if type(row["stringtie_id"]) == str:
-            C1_ST = row["stringtie_id"].strip().lower() != ""
-        if type(row["isoseq_hq_id"]) == str:
-            C2_IS = row["isoseq_hq_id"].strip().lower() != ""
-        if type(row["pinfish_id"]) == str:
-            C3_PF = row["pinfish_id"].strip().lower() != ""
-        if type(row["isoseq_singleton_id"]) == str:
-            C4_SI = row["isoseq_singleton_id"].strip().lower() != ""
-        df.at[i,'only_minimap'] = C1_ST or C2_IS or C3_PF or C4_SI
-
-    t1 = df.loc[df['only_minimap'] == False, ]
-    print(t1, file=sys.stderr )
-    # just skip this for now since it's in-progress
-    #assert len(t1) == 0
+    if len(t1) != 0:
+        print(t1, file=sys.stderr)
+        raise IOError("the rows above don't have any annotations")
     return(df)
 
 # now make sure that each pinfish file has a unique hash
