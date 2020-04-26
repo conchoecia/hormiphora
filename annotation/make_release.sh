@@ -1,5 +1,5 @@
 #!/bin/bash
-RELEASE=Hcv1a1d20200324
+RELEASE=Hcv1a1d20200414
 mkdir ${RELEASE}_release
 find ./final_output/ -type f -name "*" -exec cp {} ${RELEASE}_release \;
 rm ${RELEASE}_release/*vcf*
@@ -43,6 +43,6 @@ mv ${RELEASE}_release/h1_*.fasta.gz ${RELEASE}_release/partly_phased/
 mv ${RELEASE}_release/h2_*.fasta.gz ${RELEASE}_release/partly_phased/
 
 # add the relase notes
-cat raw_files/release_template.md | sed 's/RELEASEPREFIX/${RELEASE}' > ${RELEASE}_release/README_${RELEASE}.md
+cat raw_files/release_template.md | sed "s/RELEASEPREFIX/${RELEASE}/g" > ${RELEASE}_release/README_${RELEASE}.md
 
 tar -czvf ${RELEASE}_release.tar.gz ${RELEASE}_release
