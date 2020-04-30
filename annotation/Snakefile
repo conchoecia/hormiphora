@@ -23,13 +23,14 @@ The data outputs for this program are:
 """
 import gzip
 import pandas as pd
+from Bio import SeqIO
 
 # PUT YOUR FILES HERE
 MAXTHREADS  = 90
 REF      = "raw_files/UCSC_Hcal_v1.fa.gz"
 #Prefix must not have underscores or periods
-PREFIX   = "Hcv1a1d20200427"
-CSV      = "raw_files/Hcal_annotation_v80.csv"
+PREFIX   = "Hcv1a1d20200430"
+CSV      = "raw_files/Hcal_annotation_v82.csv"
 FLNC     = "raw_files/GLO64_flnc.fastq.gz"
 PILONJAR = "raw_files/pilon-1.22.jar"
 RNAF     = "raw_files/Hc1_lib17_run1_ILL_RNAseq_R1.fastq.gz"
@@ -379,13 +380,42 @@ rule translate_prots:
         seq = "final_output/nucleotide_sequences/partly_phased/h{index}_pilon_{fix}.fasta",
         ptp = "scripts/prottrans.py"
     output:
-        pep = "final_output/protein_sequences/partly_phased/h{index}_{fix}.pep"
+        pep = temp("final_output/protein_sequences/partly_phased/temp/h{index}_{fix}.pep")
     threads: 1
     shell:
         """
         python2 {input.ptp} -r -a 50 {input.seq} | \
             cut -d'_' -f1 > {output.pep}
         """
+
+rule remove_rRNAs_from_peps:
+    """
+    gets a list of rRNAs from the annotation and removes those sequences
+    from translated peps
+    """
+    input:
+        gff = "final_output/{fix}.gff",
+        pep = "final_output/protein_sequences/partly_phased/temp/h{index}_{fix}.pep"
+    output:
+        pep = "final_output/protein_sequences/partly_phased/h{index}_{fix}.pep"
+    run:
+        check_for_these = ["rRNA 28S", "rRNA 18S"]
+        remove_these = []
+        with open(input.gff) as f:
+            for line in f:
+                splitd = line.split()
+                if splitd[2] == "gene":
+                    for entry in check_for_these:
+                        if entry in splitd[8]:
+                            remove_these.append([x for x in splitd[8].split(";") if "ID=" in x][0].replace("ID=", ""))
+        # now that we have a list of things to get rid of, filter the fasta
+        output_handle = open(output.pep, "w")
+        for record in SeqIO.parse(input.pep, "fasta"):
+            for x in remove_these:
+                if x not in record.id:
+                    SeqIO.write(record, output_handle, "fasta")
+        output_handle.close()
+
 
 rule make_gene_comparison_table:
     """

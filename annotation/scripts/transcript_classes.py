@@ -74,7 +74,7 @@ class gffFile:
                         if str(splitd[2]).strip() in ["transcript", "mRNA"]:
                             # we have just found a new transcript.
                             # make sure that the input is legal
-                            if splitd[1] in  ["pinfish", "StringTie", "custom", "AUGUSTUS"]:
+                            if splitd[1] in  ["pinfish", "StringTie", "custom", "AUGUSTUS","manual"]:
                                 if not splitd[8].split(';')[0].startswith("ID="):
                                     # should start with ID=
                                     print(line, file=sys.stderr)
@@ -97,7 +97,7 @@ class gffFile:
                             if splitd[1] == "pinfish":
                                 tID = splitd[8].split(';')[0].replace("ID=","").strip()
                                 gID = tID
-                            elif splitd[1] in ["StringTie", "AUGUSTUS", "custom"]:
+                            elif splitd[1] in ["StringTie", "AUGUSTUS", "custom", "manual"]:
                                 tID = [x.replace("ID=","").strip() for x in splitd[8].split(';') if "ID=" in x][0]
                                 gID = ".".join(tID.split('.')[0:-1])
                             elif splitd[1] == "PacBio":
@@ -148,7 +148,7 @@ class gffFile:
                                     raise Exception("""There is some input error. We found
                                   a line that doesn't have field 9 starting with gene_id.
                                   all PacBio exons start with this""")
-                            elif splitd[1] in ["custom"]:
+                            elif splitd[1] in ["custom", "manual"]:
                                 # the input format is variable, but should have parent
                                 if "Parent=" not in splitd[8]:
                                     print(line, file=sys.stderr)
@@ -168,13 +168,8 @@ class gffFile:
                                 tID = splitd[8].split(';')[1].replace("Parent=","").strip()
                             elif splitd[1] == "PacBio":
                                 tID = splitd[8].split(';')[1].replace("transcript_id","").strip().replace("\"", "")
-                            elif splitd[1] == "custom":
-                                temp = splitd[8].split(';')
-                                parent_index = 0
-                                for i in range(len(temp)):
-                                    if "Parent=" in temp[i]:
-                                        parent_index=i
-                                tID = temp[parent_index].replace("Parent=","").strip()
+                            elif splitd[1] in ["custom", "manual"]:
+                                tID = [x for x in splitd[8].split(";") if "Parent=" in x][0].replace("Parent=", "").strip()
                             else:
                                 raise IOError("Encountered some unknown while parsing transcript IDs")
 
