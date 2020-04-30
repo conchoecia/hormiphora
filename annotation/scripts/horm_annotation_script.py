@@ -19,7 +19,7 @@ def main():
                      "raw_files/UCSC_Hcal_v1_B1_LR.pinfish_clusters_c7p10.gff.gz",
                      "raw_files/UCSC_Hcal_v1_B1_LR.pinfish_clusters_c2p20.gff.gz"]
     stringtie = ["raw_files/UCSC_Hcal_v1_B1_LR.stringtie_f01.gff.gz"]
-    augustus  = ["raw_files/horm_augustus.gff"]
+    augustus  = ["raw_files/horm_augustus.gff.gz"]
     isoseq_hq = ["raw_files/GLO64_isoseq.collapsed.filtered.gff.gz"]
     isoseq_singletons = ["raw_files/GLO64_singletons.collapsed.gff.gz"]
     manual  = ["raw_files/horm_manual.gff"]
@@ -73,8 +73,8 @@ def main():
         filelist = parse_these[key]
         GFFs[keyword] = parse_file_keyword(filelist, keyword)
         #if key == "augustus":
-        #    print(GFFs["augustus"].IDTS, file=sys.stderr)
-        #    print(GFFs["augustus"].GTT, file=sys.stderr)
+        #    print(GFFs["augustus"].IDTS["g23660.t1"], file=sys.stderr)
+        #    print(GFFs["augustus"].GTT["g23660"], file=sys.stderr)
 
     # Now make sure that there are no gene IDs shared between any of the GFFs
     all_ids = dict()

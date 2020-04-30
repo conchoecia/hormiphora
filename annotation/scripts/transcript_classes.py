@@ -98,7 +98,7 @@ class gffFile:
                                 tID = splitd[8].split(';')[0].replace("ID=","").strip()
                                 gID = tID
                             elif splitd[1] in ["StringTie", "AUGUSTUS", "custom"]:
-                                tID = splitd[8].split(';')[0].replace("ID=","").strip()
+                                tID = [x.replace("ID=","").strip() for x in splitd[8].split(';') if "ID=" in x][0]
                                 gID = ".".join(tID.split('.')[0:-1])
                             elif splitd[1] == "PacBio":
                                 tID = splitd[8].split(';')[1].replace("transcript_id","").strip().replace("\"", "")
@@ -107,8 +107,9 @@ class gffFile:
                                 raise IOError("Encountered some unknown while parsing gene id.")
 
                             if tID in self.IDTS:
-                                raise Exception("""This transcript is already in the map.
-                                            we shouldn't see it here yet.""")
+                                raise Exception("""This transcript ({}) is already in the map.
+                                            we shouldn't see it here yet.""".format(
+                                            tID))
                             # Now that we have the transcript ID and the geneID
                             #  store them in the instance
                             if splitd[1] == "pinfish":

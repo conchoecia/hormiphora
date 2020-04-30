@@ -22,13 +22,14 @@ The data outputs for this program are:
      and only contains those that were uniquely assignable to haplotype 0 or 1.
 """
 import gzip
+import pandas as pd
 
 # PUT YOUR FILES HERE
 MAXTHREADS  = 90
 REF      = "raw_files/UCSC_Hcal_v1.fa.gz"
 #Prefix must not have underscores or periods
-PREFIX   = "Hcv1a1d20200411"
-CSV      = "raw_files/Hcal_annotation_v75.csv"
+PREFIX   = "Hcv1a1d20200427"
+CSV      = "raw_files/Hcal_annotation_v80.csv"
 FLNC     = "raw_files/GLO64_flnc.fastq.gz"
 PILONJAR = "raw_files/pilon-1.22.jar"
 RNAF     = "raw_files/Hc1_lib17_run1_ILL_RNAseq_R1.fastq.gz"
@@ -43,6 +44,27 @@ with gzip.open(REF, "rt") as f:
         line = line.strip()
         if line[0] == ">":
             chroms.append(line.split()[0].replace(">", ""))
+
+def attach_descriptions_to_pdf(fasta_input,
+                               gene_to_description_file,
+                               output_file):
+    df = pd.read_csv(gene_to_description_file, sep=',',
+                     header = None, index_col = 0)
+    df.columns = ["description"]
+    input_handle  = open(fasta_input, "r")
+    output_handle = open(output_file, "w")
+    for line in input_handle:
+        line = line.strip()
+        if line[0] == ">":
+            geneid = '.'.join(line[1:].split('.')[:-1])
+            if geneid in df.index:
+                description = df.at[geneid, "description"]
+                print("{} {}".format(line, description), file=output_handle)
+            else:
+                print(line, file=output_handle)
+        else:
+            print(line, file=output_handle)
+    input_handle.close()
 
 rule all:
     input:
@@ -90,7 +112,6 @@ rule gen_temporary_ref:
         zcat {input.ref} > {output.tempref}
         """
 
-
 rule gen_transcripts_from_spreadsheet:
     """
     generates a gff files from all of the sources
@@ -100,12 +121,29 @@ rule gen_transcripts_from_spreadsheet:
         ref = "tempfiles/ref.fa",
         csv = CSV,
         has = "scripts/horm_annotation_script.py",
-        tc  = "scripts/transcript_classes.py"
+        tc  = "scripts/transcript_classes.py",
+        mito = "raw_files/Hc1_mito_Mrename.gff3.gz"
     output:
         gff = "final_output/{fix}.gff"
     shell:
         """
         python {input.has} {input.csv} > {output.gff}
+        zcat {input.mito} >> {output.gff}
+        """
+
+rule gff_to_gene_description:
+    input:
+        gff = "final_output/{fix}.gff"
+    output:
+        gene_to_description = "tempfiles/gene_to_description_{fix}.txt"
+    shell:
+        """
+        cat {input.gff} | grep 'Description' | \
+          cut -f9 | tr ';' '\\n' | \
+          grep -E 'ID=|Description=' | \
+          paste - - | sed 's/ID=//g' | \
+          sed 's/Description=//g' | \
+          tr '\\t' ',' > {output.gene_to_description}
         """
 
 rule gen_fasta_from_gff:
@@ -113,11 +151,24 @@ rule gen_fasta_from_gff:
         ref = "tempfiles/ref.fa",
         gff = "final_output/{fix}.gff"
     output:
-        fas = "final_output/nucleotide_sequences/unphased/{fix}_transcripts.fasta"
+        fas = temp("final_output/nucleotide_sequences/unphased/{fix}_transcripts.temp.fasta")
     shell:
         """
-        gffread -w {output.fas} -g {input.ref} {input.gff}
+        awk '{{if ($1 != "M"){{print($0)}} }}' {input.gff} > temp.gff
+        gffread -w {output.fas} -g {input.ref} temp.gff
+        rm temp.gff
         """
+
+rule attach_descriptions_to_filenames:
+    input:
+        fas = "final_output/nucleotide_sequences/unphased/{fix}_transcripts.temp.fasta",
+        gene_to_description = "tempfiles/gene_to_description_{fix}.txt"
+    output:
+        fas = "final_output/nucleotide_sequences/unphased/{fix}_transcripts.fasta"
+    run:
+        attach_descriptions_to_pdf(input.fas,
+                                   input.gene_to_description,
+                                   output.fas)
 
 rule map_illumina_to_transcripts:
     """
@@ -337,6 +388,9 @@ rule translate_prots:
         """
 
 rule make_gene_comparison_table:
+    """
+    TODO EDIT THIS
+    """
     input:
         fasta = "final_output/nucleotide_sequences/unphased/{fix}_transcripts.fasta",
         peps = expand("final_output/protein_sequences/partly_phased/h{index}_{fix}.pep",
@@ -344,13 +398,31 @@ rule make_gene_comparison_table:
         make_table_of_genes = "scripts/make_table_of_genes.py",
     output:
         diff_length_csvs = "final_output/protein_sequences/model/protein_size_table_{fix}.csv",
-        protein_model    = "final_output/protein_sequences/model/{fix}_model_proteins.pep.gz"
-    params:
-        protein_model    = lambda wildcards: "final_output/protein_sequences/model/{}_model_proteins.pep".format(wildcards.fix)
+        protein_model    = temp("final_output/protein_sequences/model/{fix}_model_proteins.temp.pep")
     shell:
         """
-        python {input.make_table_of_genes} {input.fasta} {input.peps} {output.diff_length_csvs} {params.protein_model}
-        gzip {params.protein_model}
+        python {input.make_table_of_genes} {input.fasta} {input.peps} {output.diff_length_csvs} {output.protein_model}
+        """
+
+rule attach_descriptions_to_protein_models:
+    input:
+        pep = "final_output/protein_sequences/model/{fix}_model_proteins.temp.pep",
+        gene_to_description = "tempfiles/gene_to_description_{fix}.txt"
+    output:
+        pep = temp("final_output/protein_sequences/model/{fix}_model_proteins.temp2.pep")
+    run:
+        attach_descriptions_to_pdf(input.pep,
+                                   input.gene_to_description,
+                                   output.pep)
+
+rule gzip_protein_models:
+    input:
+        fas = temp("final_output/protein_sequences/model/{fix}_model_proteins.temp2.pep")
+    output:
+        fas = "final_output/protein_sequences/model/{fix}_model_proteins.pep.gz"
+    shell:
+        """
+        cat {input.fas} | gzip > {output.fas}
         """
 
 rule map_phased_transcripts_to_genome:
@@ -515,7 +587,6 @@ rule make_final_phased_peps:
             cut -d'.' -f1,2,3,4,5 | \
             bioawk -v var={params.index} -cfastx '{{printf(">%s.h%s\\n%s\\n", $name, var, $seq)}}' | \
             gzip > {output.final_peptides}
-
         """
 
 rule temp_catd_phased_nucls:
