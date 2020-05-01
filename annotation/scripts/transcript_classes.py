@@ -200,7 +200,7 @@ def DoL_empty(DoL):
             return False
     return True
 
-def parse_spreadsheet(df, GFFs, CTGm):
+def parse_spreadsheet(df, GFFs, CTGm, the_source, annotation_version):
     """Go through the spreadsheet,
       one row at a time, and construct transcripts
 
@@ -208,8 +208,9 @@ def parse_spreadsheet(df, GFFs, CTGm):
       and a value of the GFF object
 
     CTGm is the column_name_to_GFF_map
+
+    the_source - is the genome assembly. Like hg38, Hcv1
     """
-    the_source = "Hcv1"
     this_chromosome = ""
     gene_counter = ""
     isoform_counter = 0
@@ -263,7 +264,7 @@ def parse_spreadsheet(df, GFFs, CTGm):
             #there are some transcripts here.
             gene_counter += 1
             isoform_counter = 1
-            this_gene = "Hcv1.1.{}.g{}".format(this_chromosome, gene_counter)
+            this_gene = "{}.av{}.{}.g{}".format(the_source, annotation_version, this_chromosome, gene_counter)
 
             # look for "FORWARD STRAND" and "REVERSE STRAND" to override
             #  the strand for everything
@@ -437,7 +438,7 @@ def sumone_has_checked(df):
     # program will crash if this fails
     if len(t1) != 0:
         print(t1)
-        raise Exception("There are some genes that haven't been checked.")
+        raise Exception("There are some genes that haven't been checked\n{}\n".format(t1,))
 
     return(df)
 

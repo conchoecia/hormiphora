@@ -37,6 +37,7 @@ gene_dict = {}
 for record in SeqIO.parse(seqs_orig, "fasta"):
     seq_record = ".".join(record.id.split('.')[0:5])
     seqlist.add(seq_record)
+    print(seq_record)
     this_chr = seq_record.split('.')[2]
     this_gene= int(seq_record.split('.')[3].replace('g',''))
     if this_chr not in gene_dict:

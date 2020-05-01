@@ -26,17 +26,7 @@ import pandas as pd
 from Bio import SeqIO
 
 # PUT YOUR FILES HERE
-MAXTHREADS  = 90
 REF      = "raw_files/UCSC_Hcal_v1.fa.gz"
-#Prefix must not have underscores or periods
-PREFIX   = "Hcv1a1d20200430"
-CSV      = "raw_files/Hcal_annotation_v83.csv"
-FLNC     = "raw_files/GLO64_flnc.fastq.gz"
-PILONJAR = "raw_files/pilon-1.22.jar"
-RNAF     = "raw_files/Hc1_lib17_run1_ILL_RNAseq_R1.fastq.gz"
-RNAR     = "raw_files/Hc1_lib17_run1_ILL_RNAseq_R2.fastq.gz"
-# VCF file for the whole genome
-GVCF     = "tempfiles/phased.vcf"
 
 #get the chromosome order in order to fuse the vcf file
 chroms = []
@@ -45,6 +35,18 @@ with gzip.open(REF, "rt") as f:
         line = line.strip()
         if line[0] == ">":
             chroms.append(line.split()[0].replace(">", ""))
+
+#Prefix must not have underscores or periods
+PREFIX   = "Hcv1.av84"
+CSV      = "raw_files/Hcal_annotation_v84.csv"
+AV       = "v84" #the assembly version
+FLNC     = "raw_files/GLO64_flnc.fastq.gz"
+PILONJAR = "raw_files/pilon-1.22.jar"
+RNAF     = "raw_files/Hc1_lib17_run1_ILL_RNAseq_R1.fastq.gz"
+RNAR     = "raw_files/Hc1_lib17_run1_ILL_RNAseq_R2.fastq.gz"
+# VCF file for the whole genome
+gVCFs     = expand("../phasing/final_output/phased_by_chromosome/largest_blocks.hap.phased.{chrs}.vcf.gz", chrs = chroms)
+genome_assembly_number = "Hcv1"
 
 def attach_descriptions_to_pdf(fasta_input,
                                gene_to_description_file,
@@ -66,6 +68,7 @@ def attach_descriptions_to_pdf(fasta_input,
         else:
             print(line, file=output_handle)
     input_handle.close()
+    output_handle.close()
 
 rule all:
     input:
@@ -107,7 +110,7 @@ rule gen_temporary_ref:
     input:
         ref = REF
     output:
-        tempref = "tempfiles/ref.fa"
+        tempref = temp("tempfiles/ref.fa")
     shell:
         """
         zcat {input.ref} > {output.tempref}
@@ -126,9 +129,12 @@ rule gen_transcripts_from_spreadsheet:
         mito = "raw_files/Hc1_mito_Mrename.gff3.gz"
     output:
         gff = "final_output/{fix}.gff"
+    params:
+        genome_assem_number = genome_assembly_number,
+        av = AV
     shell:
         """
-        python {input.has} {input.csv} > {output.gff}
+        python {input.has} {input.csv} {params.genome_assem_number} {params.av} > {output.gff}
         zcat {input.mito} >> {output.gff}
         """
 
@@ -136,7 +142,7 @@ rule gff_to_gene_description:
     input:
         gff = "final_output/{fix}.gff"
     output:
-        gene_to_description = "tempfiles/gene_to_description_{fix}.txt"
+        gene_to_description = temp("tempfiles/gene_to_description_{fix}.txt")
     shell:
         """
         cat {input.gff} | grep 'Description' | \
@@ -180,8 +186,8 @@ rule map_illumina_to_transcripts:
         freads = RNAF,
         rreads = RNAR
     output:
-        bam = "tempfiles/bamfiles/rna_to_transcripts/ill_to_{fix}_transcripts.sorted.bam"
-    threads: MAXTHREADS
+        bam = temp("tempfiles/bamfiles/rna_to_transcripts/ill_to_{fix}_transcripts.sorted.bam")
+    threads: workflow.cores
     shell:
         """
         ### first generate a sequence for each isoform
@@ -198,8 +204,8 @@ rule map_flnc_to_transcripts:
         fas = "final_output/nucleotide_sequences/unphased/{fix}_transcripts.fasta",
         flnc = FLNC
     output:
-        bam = "tempfiles/bamfiles/rna_to_transcripts/flnc_to_{fix}_transcripts.sorted.bam"
-    threads: MAXTHREADS
+        bam = temp("tempfiles/bamfiles/rna_to_transcripts/flnc_to_{fix}_transcripts.sorted.bam")
+    threads: workflow.cores
     shell:
         """
         # now map flnc to each transcript
@@ -217,7 +223,7 @@ rule merge_bams:
         ill_bam  = "tempfiles/bamfiles/rna_to_transcripts/ill_to_{fix}_transcripts.sorted.bam",
         flnc_bam = "tempfiles/bamfiles/rna_to_transcripts/flnc_to_{fix}_transcripts.sorted.bam"
     output:
-        merged   = "tempfiles/bamfiles/merged_to_transcripts/allreads_to_{fix}_transcripts.sorted.bam"
+        merged   = temp("tempfiles/bamfiles/merged_to_transcripts/allreads_to_{fix}_transcripts.sorted.bam")
     shell:
         """
         # merge bams
@@ -231,7 +237,7 @@ rule call_vcf_of_transcripts:
         merged   = "tempfiles/bamfiles/merged_to_transcripts/allreads_to_{fix}_transcripts.sorted.bam"
     output:
         vcf = "final_output/vcf_files/{fix}_transcripts.vcf"
-    threads: MAXTHREADS
+    threads: workflow.cores
     shell:
         """
         # call a vcf
@@ -262,7 +268,7 @@ rule haplotag_flnc_bam:
         flnc_bam = "tempfiles/bamfiles/rna_to_transcripts/flnc_to_{fix}_transcripts.sorted.bam"
     output:
         gzvcf = "final_output/vcf_files/phased/{fix}_transcripts.phased.vcf.gz",
-        flnc_bam = "tempfiles/bamfiles/rna_to_transcripts/flnc_haplotagged_to_{fix}_transcripts.sorted.bam"
+        flnc_bam = temp("tempfiles/bamfiles/rna_to_transcripts/flnc_haplotagged_to_{fix}_transcripts.sorted.bam")
     shell:
         """
         bgzip -c {input.vcf} > {output.gzvcf}
@@ -276,7 +282,7 @@ rule generate_two_references_from_vcf:
         fas = "final_output/nucleotide_sequences/unphased/{fix}_transcripts.fasta",
         gzvcf = "final_output/vcf_files/phased/{fix}_transcripts.phased.vcf.gz",
     output:
-        fas = "tempfiles/nucleotide_sequences/unphased/phase{index}_transcripts_{fix}.fasta",
+        fas = temp("tempfiles/nucleotide_sequences/unphased/phase{index}_transcripts_{fix}.fasta"),
     params:
         outstem = lambda wildcards: "tempfiles/nucleotide_sequences/unphased",
         prefix = lambda wildcards: wildcards.fix
@@ -299,8 +305,8 @@ rule get_one_fastq_file_per_haplotig:
         flnc_bam = "tempfiles/bamfiles/rna_to_transcripts/flnc_haplotagged_to_{fix}_transcripts.sorted.bam",
         reads = FLNC
     output:
-        rlist  = "tempfiles/fastq/unphased/h{index}list.{fix}.reads.txt",
-        reads = "tempfiles/fastq/unphased/h{index}.flnc.{fix}.fastq.gz",
+        rlist  = temp("tempfiles/fastq/unphased/h{index}list.{fix}.reads.txt"),
+        reads = temp("tempfiles/fastq/unphased/h{index}.flnc.{fix}.fastq.gz"),
     params:
         prefix = lambda wildcards: wildcards.fix,
         dex = lambda wildcards: wildcards.index
@@ -320,8 +326,8 @@ rule map_reads_to_transcripts:
         fas = "tempfiles/nucleotide_sequences/unphased/phase{index}_transcripts_{fix}.fasta",
         reads = "tempfiles/fastq/unphased/h{index}.flnc.{fix}.fastq.gz",
     output:
-        bam = "tempfiles/bamfiles/h{index}flnc_to_h{index}.{fix}.sorted.bam"
-    threads: MAXTHREADS
+        bam = temp("tempfiles/bamfiles/h{index}flnc_to_h{index}.{fix}.sorted.bam")
+    threads: workflow.cores
     shell:
         """
         minimap2 -ax asm20 -t {threads} {input.fas} {input.reads} | \
@@ -337,8 +343,8 @@ rule pilon_correct_the_references:
         bam = "tempfiles/bamfiles/h{index}flnc_to_h{index}.{fix}.sorted.bam",
         pilon = PILONJAR
     output:
-        seq = "tempfiles/pilon/h{index}_flnc_to_{fix}_h{index}.pilon/h{index}_flnc_to_{fix}_h{index}.pilon.fasta",
-    threads: MAXTHREADS
+        seq = temp("tempfiles/pilon/h{index}_flnc_to_{fix}_h{index}.pilon/h{index}_flnc_to_{fix}_h{index}.pilon.fasta"),
+    threads: workflow.cores
     params:
         outdir = lambda wildcards: "tempfiles/pilon/h{0}_flnc_to_{1}_h{0}.pilon".format(wildcards.index, wildcards.fix),
         outname = lambda wildcards: "h{0}_flnc_to_{1}_h{0}.pilon".format(wildcards.index, wildcards.fix)
@@ -403,23 +409,40 @@ rule remove_rRNAs_from_peps:
         remove_these = []
         with open(input.gff) as f:
             for line in f:
-                splitd = line.split()
-                if splitd[2] == "gene":
-                    for entry in check_for_these:
-                        if entry in splitd[8]:
-                            remove_these.append([x for x in splitd[8].split(";") if "ID=" in x][0].replace("ID=", ""))
+                line=line.strip()
+                if line and line[0] != "#":
+                    splitd = line.split('\t')
+                    if splitd[2] == "gene":
+                        for entry in check_for_these:
+                            if entry in splitd[8]:
+                                print(splitd[8])
+                                remove_these.append([x for x in splitd[8].split(";") if "ID=" in x][0].replace("ID=", ""))
         # now that we have a list of things to get rid of, filter the fasta
         output_handle = open(output.pep, "w")
+        keep_these = []
+        num_records=0
         for record in SeqIO.parse(input.pep, "fasta"):
+            num_records += 1
+            keep = True
             for x in remove_these:
-                if x not in record.id:
-                    SeqIO.write(record, output_handle, "fasta")
+                if x in record.id:
+                    print("booting", record.id)
+                    keep = False
+            if keep:
+                keep_these.append(record)
+        SeqIO.write(keep_these, output_handle, "fasta")
         output_handle.close()
+
+        # now make sure the number of records is correct
+        new_num_records = 0
+        for record in SeqIO.parse(output.pep, "fasta"):
+            new_num_records += 1
+        assert new_num_records == len(keep_these)
 
 
 rule make_gene_comparison_table:
     """
-    TODO EDIT THIS
+    TODO EDIT THIS - I don't remember what I was supposed to do
     """
     input:
         fasta = "final_output/nucleotide_sequences/unphased/{fix}_transcripts.fasta",
@@ -447,7 +470,7 @@ rule attach_descriptions_to_protein_models:
 
 rule gzip_protein_models:
     input:
-        fas = temp("final_output/protein_sequences/model/{fix}_model_proteins.temp2.pep")
+        fas = "final_output/protein_sequences/model/{fix}_model_proteins.temp2.pep"
     output:
         fas = "final_output/protein_sequences/model/{fix}_model_proteins.pep.gz"
     shell:
@@ -464,8 +487,8 @@ rule map_phased_transcripts_to_genome:
         transcripts = "final_output/nucleotide_sequences/partly_phased/h{index}_pilon_{fix}.fasta",
         genome = "tempfiles/ref.fa"
     output:
-        bam = "tempfiles/bamfiles/transcripts_to_genome/pilon_h{index}_to_ref.{fix}.sorted.bam"
-    threads: MAXTHREADS
+        bam = temp("tempfiles/bamfiles/transcripts_to_genome/pilon_h{index}_to_ref.{fix}.sorted.bam")
+    threads: workflow.cores
     shell:
         """
         minimap2 -ax asm20 -t {threads} {input.genome} {input.transcripts} | \
@@ -481,8 +504,8 @@ rule merge_bams_from_transcripts:
     input:
         bams = expand("tempfiles/bamfiles/transcripts_to_genome/pilon_h{index}_to_ref.{fix}.sorted.bam", fix = PREFIX, index = ["1", "2"]),
     output:
-        merged = "tempfiles/bamfiles/transcripts_to_genome/pilon_merged_to_ref.{fix}.sorted.bam",
-        index = "tempfiles/bamfiles/transcripts_to_genome/pilon_merged_to_ref.{fix}.sorted.bam.bai"
+        merged = temp("tempfiles/bamfiles/transcripts_to_genome/pilon_merged_to_ref.{fix}.sorted.bam"),
+        index  = temp("tempfiles/bamfiles/transcripts_to_genome/pilon_merged_to_ref.{fix}.sorted.bam.bai")
 
     threads: 1
     shell:
@@ -497,10 +520,10 @@ rule gen_temporary_whole_genome_vcf:
      These are from phase blocks as large as the chromosome sizes.
     """
     input:
-        vcfs = expand("../phasing/final_output/phased_by_chromosome/largest_blocks.hap.phased.{chrs}.vcf.gz", chrs = chroms)
+        vcfs = gVCFs
     output:
-        gz = "tempfiles/whole_genome_phased.vcf.gz",
-        tbi = "tempfiles/whole_genome_phased.vcf.gz.tbi"
+        gz  = temp("tempfiles/whole_genome_phased.vcf.gz"),
+        tbi = temp("tempfiles/whole_genome_phased.vcf.gz.tbi")
     params:
         vcf = "tempfiles/whole_genome_phased.vcf"
     shell:
@@ -531,7 +554,7 @@ rule haplotag_transcripts:
         index = "tempfiles/bamfiles/transcripts_to_genome/pilon_merged_to_ref.{fix}.sorted.bam.bai",
         ref = "tempfiles/ref.fa"
     output:
-        bam = "tempfiles/bamfiles/transcripts_to_genome/haplotaged_pilon_to_ref.{fix}.sorted.bam"
+        bam = temp("tempfiles/bamfiles/transcripts_to_genome/haplotaged_pilon_to_ref.{fix}.sorted.bam")
     shell:
         """
         whatshap haplotag --ignore-read-groups -o {output.bam} \
@@ -542,7 +565,7 @@ rule make_phased_list:
     input:
         bam = "tempfiles/bamfiles/transcripts_to_genome/haplotaged_pilon_to_ref.{fix}.sorted.bam"
     output:
-        txt = "tempfiles/txt/h{index}_transcript_to_genome.{fix}.list"
+        txt = temp("tempfiles/txt/h{index}_transcript_to_genome.{fix}.list")
     threads: 1
     params:
         index = lambda wildcards: wildcards.index

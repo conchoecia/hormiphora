@@ -15,6 +15,8 @@ def parse_file_keyword(thisfile, keyword):
 
 def main():
     annotation_spreadsheet = sys.argv[1]
+    the_source = sys.argv[2]
+    annotation_version = sys.argv[3].replace('v', '').strip()
     pinfish_files = ["raw_files/UCSC_Hcal_v1_B1_LR.pinfish_clusters.gff.gz",
                      "raw_files/UCSC_Hcal_v1_B1_LR.pinfish_clusters_c7p10.gff.gz",
                      "raw_files/UCSC_Hcal_v1_B1_LR.pinfish_clusters_c2p20.gff.gz"]
@@ -98,7 +100,7 @@ def main():
         raise IOError("See above message.")
 
     # this takes all the information and prints out the spreadsheet
-    tc.parse_spreadsheet(df, GFFs, column_name_to_GFF_map)
+    tc.parse_spreadsheet(df, GFFs, column_name_to_GFF_map, the_source, annotation_version)
 
 if __name__== "__main__":
     main()
