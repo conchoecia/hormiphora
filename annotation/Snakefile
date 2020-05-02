@@ -36,9 +36,21 @@ with gzip.open(REF, "rt") as f:
         if line[0] == ">":
             chroms.append(line.split()[0].replace(">", ""))
 
+#!
+#!!
+#!!!
+#!!!!
+#!!!!!
 #Prefix must not have underscores or periods
-PREFIX   = "Hcv1.av84"
+PREFIX   = "Hcv1av84" #< DO NOT. PUT an UNDERSCORE or a PERIOD in this PREFIX!
+# ^ PREFIX MUST NOT HAVE UNDERSCORES OR PERIODS. ^
+#!!!!!
+#!!!!
+#!!!
+#!!
+#!
 CSV      = "raw_files/Hcal_annotation_v84.csv"
+GAN      = "Hcv1"
 AV       = "v84" #the assembly version
 FLNC     = "raw_files/GLO64_flnc.fastq.gz"
 PILONJAR = "raw_files/pilon-1.22.jar"
@@ -46,7 +58,6 @@ RNAF     = "raw_files/Hc1_lib17_run1_ILL_RNAseq_R1.fastq.gz"
 RNAR     = "raw_files/Hc1_lib17_run1_ILL_RNAseq_R2.fastq.gz"
 # VCF file for the whole genome
 gVCFs     = expand("../phasing/final_output/phased_by_chromosome/largest_blocks.hap.phased.{chrs}.vcf.gz", chrs = chroms)
-genome_assembly_number = "Hcv1"
 
 def attach_descriptions_to_pdf(fasta_input,
                                gene_to_description_file,
@@ -130,7 +141,7 @@ rule gen_transcripts_from_spreadsheet:
     output:
         gff = "final_output/{fix}.gff"
     params:
-        genome_assem_number = genome_assembly_number,
+        genome_assem_number = GAN,
         av = AV
     shell:
         """
