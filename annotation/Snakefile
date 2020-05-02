@@ -83,7 +83,6 @@ def attach_descriptions_to_pdf(fasta_input,
 
 rule all:
     input:
-        "tempfiles/ref.fa",
         expand("final_output/{fix}.gff", fix = PREFIX),
         expand("final_output/nucleotide_sequences/unphased/{fix}_transcripts.fasta",fix = PREFIX),
         expand("final_output/vcf_files/{fix}_transcripts.vcf", fix = PREFIX),
@@ -121,7 +120,7 @@ rule gen_temporary_ref:
     input:
         ref = REF
     output:
-        tempref = temp("tempfiles/ref.fa")
+        tempref = "tempfiles/ref.fa"
     shell:
         """
         zcat {input.ref} > {output.tempref}
@@ -153,7 +152,7 @@ rule gff_to_gene_description:
     input:
         gff = "final_output/{fix}.gff"
     output:
-        gene_to_description = temp("tempfiles/gene_to_description_{fix}.txt")
+        gene_to_description = "tempfiles/gene_to_description_{fix}.txt"
     shell:
         """
         cat {input.gff} | grep 'Description' | \
@@ -169,7 +168,7 @@ rule gen_fasta_from_gff:
         ref = "tempfiles/ref.fa",
         gff = "final_output/{fix}.gff"
     output:
-        fas = temp("final_output/nucleotide_sequences/unphased/{fix}_transcripts.temp.fasta")
+        fas = "final_output/nucleotide_sequences/unphased/{fix}_transcripts.temp.fasta"
     shell:
         """
         awk '{{if ($1 != "M"){{print($0)}} }}' {input.gff} > temp.gff
@@ -197,7 +196,7 @@ rule map_illumina_to_transcripts:
         freads = RNAF,
         rreads = RNAR
     output:
-        bam = temp("tempfiles/bamfiles/rna_to_transcripts/ill_to_{fix}_transcripts.sorted.bam")
+        bam = "tempfiles/bamfiles/rna_to_transcripts/ill_to_{fix}_transcripts.sorted.bam"
     threads: workflow.cores
     shell:
         """
@@ -215,7 +214,7 @@ rule map_flnc_to_transcripts:
         fas = "final_output/nucleotide_sequences/unphased/{fix}_transcripts.fasta",
         flnc = FLNC
     output:
-        bam = temp("tempfiles/bamfiles/rna_to_transcripts/flnc_to_{fix}_transcripts.sorted.bam")
+        bam = "tempfiles/bamfiles/rna_to_transcripts/flnc_to_{fix}_transcripts.sorted.bam"
     threads: workflow.cores
     shell:
         """
@@ -234,7 +233,7 @@ rule merge_bams:
         ill_bam  = "tempfiles/bamfiles/rna_to_transcripts/ill_to_{fix}_transcripts.sorted.bam",
         flnc_bam = "tempfiles/bamfiles/rna_to_transcripts/flnc_to_{fix}_transcripts.sorted.bam"
     output:
-        merged   = temp("tempfiles/bamfiles/merged_to_transcripts/allreads_to_{fix}_transcripts.sorted.bam")
+        merged   = "tempfiles/bamfiles/merged_to_transcripts/allreads_to_{fix}_transcripts.sorted.bam"
     shell:
         """
         # merge bams
@@ -279,7 +278,7 @@ rule haplotag_flnc_bam:
         flnc_bam = "tempfiles/bamfiles/rna_to_transcripts/flnc_to_{fix}_transcripts.sorted.bam"
     output:
         gzvcf = "final_output/vcf_files/phased/{fix}_transcripts.phased.vcf.gz",
-        flnc_bam = temp("tempfiles/bamfiles/rna_to_transcripts/flnc_haplotagged_to_{fix}_transcripts.sorted.bam")
+        flnc_bam = "tempfiles/bamfiles/rna_to_transcripts/flnc_haplotagged_to_{fix}_transcripts.sorted.bam"
     shell:
         """
         bgzip -c {input.vcf} > {output.gzvcf}
@@ -293,7 +292,7 @@ rule generate_two_references_from_vcf:
         fas = "final_output/nucleotide_sequences/unphased/{fix}_transcripts.fasta",
         gzvcf = "final_output/vcf_files/phased/{fix}_transcripts.phased.vcf.gz",
     output:
-        fas = temp("tempfiles/nucleotide_sequences/unphased/phase{index}_transcripts_{fix}.fasta"),
+        fas = "tempfiles/nucleotide_sequences/unphased/phase{index}_transcripts_{fix}.fasta"
     params:
         outstem = lambda wildcards: "tempfiles/nucleotide_sequences/unphased",
         prefix = lambda wildcards: wildcards.fix
@@ -316,8 +315,8 @@ rule get_one_fastq_file_per_haplotig:
         flnc_bam = "tempfiles/bamfiles/rna_to_transcripts/flnc_haplotagged_to_{fix}_transcripts.sorted.bam",
         reads = FLNC
     output:
-        rlist  = temp("tempfiles/fastq/unphased/h{index}list.{fix}.reads.txt"),
-        reads = temp("tempfiles/fastq/unphased/h{index}.flnc.{fix}.fastq.gz"),
+        rlist  = "tempfiles/fastq/unphased/h{index}list.{fix}.reads.txt",
+        reads = "tempfiles/fastq/unphased/h{index}.flnc.{fix}.fastq.gz",
     params:
         prefix = lambda wildcards: wildcards.fix,
         dex = lambda wildcards: wildcards.index
@@ -337,7 +336,7 @@ rule map_reads_to_transcripts:
         fas = "tempfiles/nucleotide_sequences/unphased/phase{index}_transcripts_{fix}.fasta",
         reads = "tempfiles/fastq/unphased/h{index}.flnc.{fix}.fastq.gz",
     output:
-        bam = temp("tempfiles/bamfiles/h{index}flnc_to_h{index}.{fix}.sorted.bam")
+        bam = "tempfiles/bamfiles/h{index}flnc_to_h{index}.{fix}.sorted.bam"
     threads: workflow.cores
     shell:
         """
@@ -354,7 +353,7 @@ rule pilon_correct_the_references:
         bam = "tempfiles/bamfiles/h{index}flnc_to_h{index}.{fix}.sorted.bam",
         pilon = PILONJAR
     output:
-        seq = temp("tempfiles/pilon/h{index}_flnc_to_{fix}_h{index}.pilon/h{index}_flnc_to_{fix}_h{index}.pilon.fasta"),
+        seq = "tempfiles/pilon/h{index}_flnc_to_{fix}_h{index}.pilon/h{index}_flnc_to_{fix}_h{index}.pilon.fasta",
     threads: workflow.cores
     params:
         outdir = lambda wildcards: "tempfiles/pilon/h{0}_flnc_to_{1}_h{0}.pilon".format(wildcards.index, wildcards.fix),
@@ -397,7 +396,7 @@ rule translate_prots:
         seq = "final_output/nucleotide_sequences/partly_phased/h{index}_pilon_{fix}.fasta",
         ptp = "scripts/prottrans.py"
     output:
-        pep = temp("final_output/protein_sequences/partly_phased/temp/h{index}_{fix}.pep")
+        pep = "final_output/protein_sequences/partly_phased/temp/h{index}_{fix}.pep"
     threads: 1
     shell:
         """
@@ -462,7 +461,7 @@ rule make_gene_comparison_table:
         make_table_of_genes = "scripts/make_table_of_genes.py",
     output:
         diff_length_csvs = "final_output/protein_sequences/model/protein_size_table_{fix}.csv",
-        protein_model    = temp("final_output/protein_sequences/model/{fix}_model_proteins.temp.pep")
+        protein_model    = "final_output/protein_sequences/model/{fix}_model_proteins.temp.pep"
     shell:
         """
         python {input.make_table_of_genes} {input.fasta} {input.peps} {output.diff_length_csvs} {output.protein_model}
@@ -473,7 +472,7 @@ rule attach_descriptions_to_protein_models:
         pep = "final_output/protein_sequences/model/{fix}_model_proteins.temp.pep",
         gene_to_description = "tempfiles/gene_to_description_{fix}.txt"
     output:
-        pep = temp("final_output/protein_sequences/model/{fix}_model_proteins.temp2.pep")
+        pep = "final_output/protein_sequences/model/{fix}_model_proteins.temp2.pep"
     run:
         attach_descriptions_to_pdf(input.pep,
                                    input.gene_to_description,
@@ -498,7 +497,7 @@ rule map_phased_transcripts_to_genome:
         transcripts = "final_output/nucleotide_sequences/partly_phased/h{index}_pilon_{fix}.fasta",
         genome = "tempfiles/ref.fa"
     output:
-        bam = temp("tempfiles/bamfiles/transcripts_to_genome/pilon_h{index}_to_ref.{fix}.sorted.bam")
+        bam = "tempfiles/bamfiles/transcripts_to_genome/pilon_h{index}_to_ref.{fix}.sorted.bam"
     threads: workflow.cores
     shell:
         """
@@ -515,8 +514,8 @@ rule merge_bams_from_transcripts:
     input:
         bams = expand("tempfiles/bamfiles/transcripts_to_genome/pilon_h{index}_to_ref.{fix}.sorted.bam", fix = PREFIX, index = ["1", "2"]),
     output:
-        merged = temp("tempfiles/bamfiles/transcripts_to_genome/pilon_merged_to_ref.{fix}.sorted.bam"),
-        index  = temp("tempfiles/bamfiles/transcripts_to_genome/pilon_merged_to_ref.{fix}.sorted.bam.bai")
+        merged = "tempfiles/bamfiles/transcripts_to_genome/pilon_merged_to_ref.{fix}.sorted.bam",
+        index  = "tempfiles/bamfiles/transcripts_to_genome/pilon_merged_to_ref.{fix}.sorted.bam.bai"
 
     threads: 1
     shell:
@@ -533,8 +532,8 @@ rule gen_temporary_whole_genome_vcf:
     input:
         vcfs = gVCFs
     output:
-        gz  = temp("tempfiles/whole_genome_phased.vcf.gz"),
-        tbi = temp("tempfiles/whole_genome_phased.vcf.gz.tbi")
+        gz  = "tempfiles/whole_genome_phased.vcf.gz",
+        tbi = "tempfiles/whole_genome_phased.vcf.gz.tbi"
     params:
         vcf = "tempfiles/whole_genome_phased.vcf"
     shell:
@@ -565,7 +564,7 @@ rule haplotag_transcripts:
         index = "tempfiles/bamfiles/transcripts_to_genome/pilon_merged_to_ref.{fix}.sorted.bam.bai",
         ref = "tempfiles/ref.fa"
     output:
-        bam = temp("tempfiles/bamfiles/transcripts_to_genome/haplotaged_pilon_to_ref.{fix}.sorted.bam")
+        bam = "tempfiles/bamfiles/transcripts_to_genome/haplotaged_pilon_to_ref.{fix}.sorted.bam"
     shell:
         """
         whatshap haplotag --ignore-read-groups -o {output.bam} \
@@ -576,7 +575,7 @@ rule make_phased_list:
     input:
         bam = "tempfiles/bamfiles/transcripts_to_genome/haplotaged_pilon_to_ref.{fix}.sorted.bam"
     output:
-        txt = temp("tempfiles/txt/h{index}_transcript_to_genome.{fix}.list")
+        txt = "tempfiles/txt/h{index}_transcript_to_genome.{fix}.list"
     threads: 1
     params:
         index = lambda wildcards: wildcards.index
@@ -630,7 +629,7 @@ rule temp_catd_phased_peps:
         peps = expand("final_output/protein_sequences/partly_phased/h{index}_{fix}.pep",
                      fix = PREFIX, index = ["1","2"]),
     output:
-        temppeps = temp("tempfiles/temp_fused_phased.pep")
+        temppeps = "tempfiles/temp_fused_phased.pep"
     shell:
         """
         cat {input.peps} > {output.temppeps}
@@ -661,7 +660,7 @@ rule temp_catd_phased_nucls:
         nucls = expand("final_output/nucleotide_sequences/partly_phased/h{index}_pilon_{fix}.fasta",
                      fix = PREFIX, index = ["1","2"]),
     output:
-        tempnucls = temp("tempfiles/temp_nucl_fused_phased.fasta")
+        tempnucls = "tempfiles/temp_nucl_fused_phased.fasta"
     shell:
         """
         cat {input.nucls} > {output.tempnucls}

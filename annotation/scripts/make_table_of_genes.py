@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """
-This program makes a table of protein sizes?
+This program makes a table of protein sizes between two haplotypes,
+  then makes a single file with all the proteins
 """
 
 import sys
@@ -33,27 +34,30 @@ from Bio import SeqIO
 import pandas as pd
 import sys
 
+print(" - Reading in the sequences from the transcripts from the gff", file=sys.stderr)
 gene_dict = {}
 for record in SeqIO.parse(seqs_orig, "fasta"):
     seq_record = ".".join(record.id.split('.')[0:5])
     seqlist.add(seq_record)
-    print(seq_record)
     this_chr = seq_record.split('.')[2]
     this_gene= int(seq_record.split('.')[3].replace('g',''))
     if this_chr not in gene_dict:
         gene_dict[this_chr] = set()
     gene_dict[this_chr].add(this_gene)
 
+print(" - Getting the number of genes on each chromosome.", file=sys.stderr)
 # get the number of genes on each chr
 for key in gene_dict:
     gene_dict[key] = max(gene_dict[key])
 
+print(" - Getting the h1 genes.", file=sys.stderr)
 # get the genes in the h1 file
 h1_dict = {x: -1 for x in seqlist}
 for record in SeqIO.parse(h1_fasta, "fasta"):
     seqid = ".".join(record.id.split(".")[0:5])
     h1_dict[seqid] = len(record.seq)
 
+print(" - Getting the h2 genes.", file=sys.stderr)
 # get the genes in the h2 file
 h2_dict = {x: -1 for x in seqlist}
 for record in SeqIO.parse(h2_fasta, "fasta"):
@@ -61,6 +65,7 @@ for record in SeqIO.parse(h2_fasta, "fasta"):
     h2_dict[seqid] = len(record.seq)
 
 # make the dataset
+print(" - Making a table of which isoform to keep.", file=sys.stderr)
 df = pd.DataFrame([h1_dict, h2_dict])
 df = df.T
 df.columns = ["h1", "h2"]
@@ -86,8 +91,9 @@ for i, row in df.iterrows():
             df.at[i, "keep"] = "h2"
 
 print(df)
-df.to_csv(diff_lengths_csv, sep='\t')
+df.to_csv(diff_lengths_csv, sep='\t', index_label="gene")
 
+print(" - Getting the isoform indices.", file=sys.stderr)
 # we need this later to sort the output
 df["isoform_index"] = -1
 for i, row in df.iterrows():
@@ -95,6 +101,7 @@ for i, row in df.iterrows():
 
 df["fasta"] = ""
 
+print(" - Adding the protein sequences to the pandas dataframe.", file=sys.stderr)
 # add the sequence to the pandas df
 col_to_file = {"h1": h1_fasta, "h2": h2_fasta}
 for key in col_to_file:
@@ -109,6 +116,7 @@ for key in col_to_file:
             #print("fasta string ", fasta_string)
             df.at[seqid, "fasta"] = fasta_string
 
+print(" - Getting number of chromosomes.", file=sys.stderr)
 # print the fasta file out in order
 #first get the num Cs
 num_c = max([int(key.replace('c','')) for key in gene_dict if key[0] == 'c'])
@@ -119,11 +127,12 @@ for i in range(1, num_c+1):
 for i in range(1, num_s+1):
     sort_list.append("sca{}".format(i))
 
+print(" - Printing out the fasta file.", file=sys.stderr)
 new_fasta = open(model_pep_file, "w")
 for this_c in sort_list:
     if this_c in gene_dict:
         for this_gene in range(1, gene_dict[this_c]+1):
-            this_id = "Hcv1.1.{}.g{}.".format(this_c, this_gene)
+            this_id = ".{}.g{}.".format(this_c, this_gene)
             print_these_df = df.filter(like=this_id, axis=0).sort_values(by ="isoform_index")
             if len(print_these_df) > 0:
                 for i, row in print_these_df.iterrows():

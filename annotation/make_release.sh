@@ -1,5 +1,5 @@
 #!/bin/bash
-RELEASE=Hcv1a1d20200414
+RELEASE=Hcv1av84
 mkdir ${RELEASE}_release
 find ./final_output/ -type f -name "*" -exec cp {} ${RELEASE}_release \;
 rm ${RELEASE}_release/*vcf*
