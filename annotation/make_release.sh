@@ -1,5 +1,5 @@
 #!/bin/bash
-RELEASE=Hcv1av84
+RELEASE=Hcv1av85
 mkdir ${RELEASE}_release
 find ./final_output/ -type f -name "*" -exec cp {} ${RELEASE}_release \;
 rm ${RELEASE}_release/*vcf*
@@ -41,6 +41,9 @@ mv ${RELEASE}_release/h1_*.pep.gz ${RELEASE}_release/partly_phased/
 mv ${RELEASE}_release/h2_*.pep.gz ${RELEASE}_release/partly_phased/
 mv ${RELEASE}_release/h1_*.fasta.gz ${RELEASE}_release/partly_phased/
 mv ${RELEASE}_release/h2_*.fasta.gz ${RELEASE}_release/partly_phased/
+
+# remove temp files
+find ${RELEASE}_release/ -name "*temp*" -exec rm -rf {} \;
 
 # add the relase notes
 cat raw_files/release_template.md | sed "s/RELEASEPREFIX/${RELEASE}/g" > ${RELEASE}_release/README_${RELEASE}.md
