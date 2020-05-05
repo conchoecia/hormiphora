@@ -1,0 +1,1 @@
+cmd = cteno_homer_1k_filtered_target.fa test masked_tad_3ktarget_motifs -fasta background_v3.fa
