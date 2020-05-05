@@ -197,7 +197,6 @@ sns.distplot([sum(d) for d in props])
 
 #%%
 #there's somewhat of a signal of existing near it. What about interrupting it? Can go back to the start/end and check that.
-#god I feel like I've been here before.
 lookup2 = {} #a simple dictionary structure will be easier.
 with open('cteno_genes.bed') as gin:
     for entry in gin:
