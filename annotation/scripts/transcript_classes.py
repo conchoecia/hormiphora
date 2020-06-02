@@ -94,6 +94,7 @@ class gffFile:
 
                             # now that we made sure the input is legal, let's parse
                             #  the gene id and the transcript ID.
+                            #print(splitd[8], file=sys.stderr)
                             if splitd[1] == "pinfish":
                                 tID = splitd[8].split(';')[0].replace("ID=","").strip()
                                 gID = tID
@@ -310,7 +311,8 @@ def parse_spreadsheet(df, GFFs, CTGm, the_source, annotation_version):
                     else:
                         #We should have encountered something. Raise an error if
                         #  we didn't find it.
-                        print(isoforms_in_this_gene, file=sys.stderr)
+                        print(GFFs[key].GTT, file=sys.stderr)
+                        print("Isoforms in this gene: {}".format( isoforms_in_this_gene), file=sys.stderr)
                         print("We couldn't find: ", this_isoform_ID, " in ", key, file=sys.stderr)
                         raise Exception("Couldn't find the transcript in the GFF file object")
                     # make sure that this isoform isn't a duplicate

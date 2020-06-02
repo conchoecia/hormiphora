@@ -11,6 +11,8 @@ def parse_file_keyword(thisfile, keyword):
     print("  - found {} genes encompassing {} isoforms".format(
         len(return_me.GTT), sum([len(return_me.GTT[key]) for key in return_me.GTT])),
           file=sys.stderr)
+    if keyword == "manual":
+        print(return_me.GTT, file=sys.stderr)
     return(return_me)
 
 def main():

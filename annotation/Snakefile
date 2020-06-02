@@ -42,16 +42,16 @@ with gzip.open(REF, "rt") as f:
 #!!!!
 #!!!!!
 #Prefix must not have underscores or periods
-PREFIX   = "Hcv1av86" #< DO NOT. PUT an UNDERSCORE or a PERIOD in this PREFIX!
+PREFIX   = "Hcv1av87" #< DO NOT. PUT an UNDERSCORE or a PERIOD in this PREFIX!
 # ^ PREFIX MUST NOT HAVE UNDERSCORES OR PERIODS. ^
 #!!!!!
 #!!!!
 #!!!
 #!!
 #!
-CSV      = "raw_files/Hcal_annotation_v85.csv"
+CSV      = "raw_files/Hcal_annotation_v87.csv"
 GAN      = "Hcv1"
-AV       = "v86" #the assembly version
+AV       = "v87" #the assembly version
 FLNC     = "raw_files/GLO64_flnc.fastq.gz"
 PILONJAR = "raw_files/pilon-1.22.jar"
 RNAF     = "/bigdata/raw/rna_reads/Project_STDS_L7_H1546P_Schultz/DS242_S98_L007_R1_001.fastq.gz"
