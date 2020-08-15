@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import pandas as pd
+import argparse
 import gzip
 import sys
 import transcript_classes as tc
@@ -11,14 +12,25 @@ def parse_file_keyword(thisfile, keyword):
     print("  - found {} genes encompassing {} isoforms".format(
         len(return_me.GTT), sum([len(return_me.GTT[key]) for key in return_me.GTT])),
           file=sys.stderr)
+    if len(return_me.GTT) == 0:
+        raise Exception("We shouldn't have found zero genes. What went wrong?")
     if keyword == "manual":
         print(return_me.GTT, file=sys.stderr)
     return(return_me)
 
+
 def main():
-    annotation_spreadsheet = sys.argv[1]
-    the_source = sys.argv[2]
-    annotation_version = sys.argv[3].replace('v', '').strip()
+    # first parse the arguments from the command line
+    parser = argparse.ArgumentParser(description='Parser for the hormiphora annotation script')
+    parser.add_argument('--spreadsheet', required=True)
+    parser.add_argument('--genomecode', required=True)
+    parser.add_argument('--annotationversion', required=True)
+    parser.add_argument('--gffoutpath', required=True)
+    parser.add_argument('--updatedcsvoutpath', required=True)
+    args = vars(parser.parse_args())
+    annotation_spreadsheet = args["spreadsheet"]
+    the_source = args["genomecode"]
+    annotation_version = args["annotationversion"].replace('v', '').strip()
     pinfish_files = ["raw_files/UCSC_Hcal_v1_B1_LR.pinfish_clusters.gff.gz",
                      "raw_files/UCSC_Hcal_v1_B1_LR.pinfish_clusters_c7p10.gff.gz",
                      "raw_files/UCSC_Hcal_v1_B1_LR.pinfish_clusters_c2p20.gff.gz"]
@@ -26,6 +38,7 @@ def main():
     augustus  = ["raw_files/horm_augustus.gff.gz"]
     isoseq_hq = ["raw_files/GLO64_isoseq.collapsed.filtered.gff.gz"]
     isoseq_singletons = ["raw_files/GLO64_singletons.collapsed.gff.gz"]
+    NCBItxome = ["raw_files/GHXS01.1_to_UCSCHcalv1.gff.gz"]
     manual  = ["raw_files/horm_manual.gff"]
     # Now we make sure that all of the pinfish files have unique IDs
     #  if they are a hash, all the IDs will be unique
@@ -36,13 +49,15 @@ def main():
                               "isoseq_singleton_id": "isoseq_singletons",
                               "pinfish_id": "pinfish",
                               "augustus": "augustus",
-                              "manual": "manual"
+                              "manual": "manual",
+                              "NCBItxome": "NCBItxome"
                               }
 
     # read in the spreadsheet
     df = pd.read_csv(annotation_spreadsheet, header=0, sep=',', comment = '#')
     #First make sure that someone has checked the gene
     df = tc.sumone_has_checked(df)
+    df["position"] = -1
     # now make sure that each transcript has a sensible chromosome
     chr_list = ["c{}".format(i) for i in range(1,14)] + ["sca{}".format(i) for i in range(1,33)] + ["M"]
     indices = tc.sensible_chromosomes(df, chr_list)
@@ -69,7 +84,8 @@ def main():
                    "isoseq_hq": isoseq_hq,
                    "isoseq_singletons": isoseq_singletons,
                    "augustus": augustus,
-                   "manual": manual
+                   "manual": manual,
+                   "NCBItxome": NCBItxome
                   }
 
     for key in parse_these:
@@ -102,7 +118,7 @@ def main():
         raise IOError("See above message.")
 
     # this takes all the information and prints out the spreadsheet
-    tc.parse_spreadsheet(df, GFFs, column_name_to_GFF_map, the_source, annotation_version)
+    tc.parse_spreadsheet(df, GFFs, column_name_to_GFF_map, the_source, annotation_version, args["gffoutpath"], args["updatedcsvoutpath"])
 
 if __name__== "__main__":
     main()

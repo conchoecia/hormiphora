@@ -67,7 +67,7 @@ class gffFile:
                         nl = line.decode("utf-8")
                     else:
                         nl=line
-                    if nl and (nl.strip() != ""):
+                    if nl and (nl.strip() != "") and nl[0] != '#':
                         splitd = nl.split('\t')
                         #print("printing nl: ", nl, file=sys.stderr)
                         #print("printing splitd: ", splitd, file=sys.stderr)
@@ -81,10 +81,10 @@ class gffFile:
                                     raise Exception("""There is some input error. We found
                                     a line that doesn't have field 9 starting with ID=.
                                     all pinfish/StringTie transcripts start with this""")
-                            elif splitd[1] in ["PacBio"]:
+                            elif splitd[1] in ["PacBio", "NCBItxome"]:
                                 if not splitd[8].split(';')[0].startswith("gene_id"):
                                     # should start with gene_id
-                                    print(line, file=sys.stderr)
+                                    print(splitd, file=sys.stderr)
                                     raise Exception("""There is some input error. We found
                                     a line that doesn't have field 9 starting with gene_id.
                                     all PacBio transcripts start with this""")
@@ -101,19 +101,21 @@ class gffFile:
                             elif splitd[1] in ["StringTie", "AUGUSTUS", "custom", "manual"]:
                                 tID = [x.replace("ID=","").strip() for x in splitd[8].split(';') if "ID=" in x][0]
                                 gID = ".".join(tID.split('.')[0:-1])
-                            elif splitd[1] == "PacBio":
+                            elif splitd[1] in ["PacBio"]:
                                 tID = splitd[8].split(';')[1].replace("transcript_id","").strip().replace("\"", "")
                                 gID = splitd[8].split(';')[0].replace("gene_id","").strip().replace("\"", "")
+                            elif splitd[1] in ["NCBItxome"]:
+                                tID = splitd[8].split('"')[1]
+                                gID = splitd[8].split('"')[1]
                             else:
                                 raise IOError("Encountered some unknown while parsing gene id.")
-
                             if tID in self.IDTS:
                                 raise Exception("""This transcript ({}) is already in the map.
                                             we shouldn't see it here yet.""".format(
                                             tID))
                             # Now that we have the transcript ID and the geneID
                             #  store them in the instance
-                            if splitd[1] == "pinfish":
+                            if splitd[1] in ["pinfish", "NCBItxome"]:
                                 # every pinfish transcript is also its own gene.
                                 #  each transcript just has its own hash.
                                 assert tID not in self.IDTS
@@ -133,26 +135,32 @@ class gffFile:
                             #make sure that the input is legal
                             if splitd[1] in  ["pinfish"]:
                                 if not splitd[8].split(';')[0].startswith("Parent="):
-                                    print(line, file=sys.stderr)
+                                    print(splitd, file=sys.stderr)
                                     raise Exception("""There is some input error. We found
                                   a line that doesn't have field 9 starting with Parent=.
                                     all pinfish exons start with this""")
                             elif splitd[1] in  ["StringTie", "AUGUSTUS"]:
                                 if not splitd[8].split(';')[0].startswith("ID="):
-                                    print(line, file=sys.stderr)
+                                    print(splitd, file=sys.stderr)
                                     raise Exception("""There is some input error. We found
                                   a line that doesn't have field 9 starting with ID=.
                                     all StringTie and AUGUSTUS exons start with this""")
                             elif splitd[1] in  ["PacBio"]:
                                 if not splitd[8].split(';')[0].startswith("gene_id \""):
-                                    print(line, file=sys.stderr)
+                                    print(splitd, file=sys.stderr)
                                     raise Exception("""There is some input error. We found
                                   a line that doesn't have field 9 starting with gene_id.
                                   all PacBio exons start with this""")
+                            elif splitd[1] in ["NCBItxome"]:
+                                if not splitd[8].split(';')[0].startswith("transcript_id \""):
+                                    print(splitd, file=sys.stderr)
+                                    raise Exception("""There is some input error. We found
+                                  a line that doesn't have field 9 starting with 'transcript_id'.
+                                  a transcriptome mapped to a genome, processed with pinfish will have this.""")
                             elif splitd[1] in ["custom", "manual"]:
                                 # the input format is variable, but should have parent
                                 if "Parent=" not in splitd[8]:
-                                    print(line, file=sys.stderr)
+                                    print(splitd, file=sys.stderr)
                                     raise Exception("""There is some input error. We found
                                     a line for a custom gene that doesn't have field 9 
                                     containing Parent=
@@ -167,8 +175,10 @@ class gffFile:
                                 tID = splitd[8].split(';')[0].replace("Parent=","").strip()
                             elif str(splitd[1]).strip() in ["StringTie", "AUGUSTUS"]:
                                 tID = splitd[8].split(';')[1].replace("Parent=","").strip()
-                            elif splitd[1] == "PacBio":
+                            elif splitd[1] in ["PacBio"]:
                                 tID = splitd[8].split(';')[1].replace("transcript_id","").strip().replace("\"", "")
+                            elif splitd[1] in ["NCBItxome"]:
+                                tID = splitd[8].split('"')[1]
                             elif splitd[1] in ["custom", "manual"]:
                                 tID = [x for x in splitd[8].split(";") if "Parent=" in x][0].replace("Parent=", "").strip()
                             else:
@@ -183,8 +193,8 @@ class gffFile:
                                 print("offending ID: ", tID, file=sys.stderr)
                                 print("offending file:", thisfile, file = sys.stderr)
                                 raise Exception("""For some reason we found an exon for a
-                                transcript before we found the transcript itself.
-                                The GFF file should have all of the transcripts first.""")
+                                  transcript before we found the transcript itself.
+                                  The GFF file should have all of the transcripts first.""")
                             self.IDTS[tID] += nl
 
 def DoL_empty(DoL):
@@ -201,7 +211,8 @@ def DoL_empty(DoL):
             return False
     return True
 
-def parse_spreadsheet(df, GFFs, CTGm, the_source, annotation_version):
+def parse_spreadsheet(df, GFFs, CTGm, the_source, annotation_version,
+    gffoutpath, csvoutpath):
     """Go through the spreadsheet,
       one row at a time, and construct transcripts
 
@@ -212,6 +223,7 @@ def parse_spreadsheet(df, GFFs, CTGm, the_source, annotation_version):
 
     the_source - is the genome assembly. Like hg38, Hcv1
     """
+    gffhandle = open(gffoutpath, "w")
     this_chromosome = ""
     gene_counter = ""
     isoform_counter = 0
@@ -224,7 +236,7 @@ def parse_spreadsheet(df, GFFs, CTGm, the_source, annotation_version):
             #we have either just started, or transitioned to a new chromosome
             this_chromosome = row_chr
             gene_counter = 0
-
+            this_position = 0
         #make sure that the gene_name string doesn't have any illegal characters
         illegal_chars = [",", ";", "="]
         if type(row["gene_name"]) == str:
@@ -260,8 +272,14 @@ def parse_spreadsheet(df, GFFs, CTGm, the_source, annotation_version):
                     isoforms_in_this_gene[CTGm[key]].append(tx.strip())
             if len(isoforms_in_this_gene[CTGm[key]]) ==  0:
                 isoforms_in_this_gene.pop(CTGm[key])
+        # if DoL_empty that means that there isn't a gene there
+        if DoL_empty(isoforms_in_this_gene):
+            #now we add the position
+            #  (this is just a dummy position to
+            #     put something there for sorting purposes))
+            df.at[i,"position"] = this_position
         # we now have all the isoforms_in_this_gene. now print them out
-        if not DoL_empty(isoforms_in_this_gene):
+        else:
             #there are some transcripts here.
             gene_counter += 1
             isoform_counter = 1
@@ -407,8 +425,14 @@ def parse_spreadsheet(df, GFFs, CTGm, the_source, annotation_version):
                     "ID={0};Name={0}".format(this_gene)]
             if type(row["gene_name"]) == str:
                 gene[-1] += ";Description={}".format(row["gene_name"].strip())
-            print("\t".join(gene))
-            print(print_buffer, end="")
+            print("\t".join(gene), file=gffhandle)
+            print(print_buffer, end="", file=gffhandle)
+            # now add the position to the dataframe
+            df.at[i, "position"] = gene_coords[0]
+            this_position = gene_coords[0]
+    df = df.drop(["checked", "one_row_one_gene"], axis=1)
+    df.to_csv(csvoutpath, sep = "\t", index = False, na_rep = "")
+    assert os.path.exists(csvoutpath)
     # now that everything has been parsed, we can check to see if any GFFs
     #  had an isoform used more than once
     print_message = """ - We found that the following isoforms were used more
@@ -424,6 +448,7 @@ def parse_spreadsheet(df, GFFs, CTGm, the_source, annotation_version):
     if print_yes:
         print(print_message, file = sys.stderr)
         raise IOError("Input error. See above message")
+    gffhandle.close()
 
 def sumone_has_checked(df):
     df["checked"] = "none"
@@ -478,6 +503,7 @@ def each_row_has_something(df, it_with_columns):
                 if row[colname].strip().lower() != "":
                     hasone = True
         # what is this doing? I don't know exactly
+        # august 2020 and I still don't remember what this does. Document your code, everyone!
         if type(row["comment"]) == str:
             for this_thing in ["m64069", "manual", "augustus"]:
                 if this_thing in row["comment"].strip().lower():
