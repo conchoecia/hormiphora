@@ -1,5 +1,5 @@
 #!/bin/bash
-GFF=../annotation/Hcv1a1d20200309_release/Hcv1a1d20200309.gff.gz
+GFF=../../annotation/Hcv1a1d20200309_release/Hcv1a1d20200309.gff.gz
 # Map the shotgun reads to the genome with bwa mem to generate this bam file
 BAM=/path/to/shot_to_assem.sorted.bam
 REF=../annotation/raw_files/UCSC_Hcal_v1.fa.gz
