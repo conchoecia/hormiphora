@@ -1,0 +1,64 @@
+>REF_TERB2_sp|Q9D494|TERB2_MOUSE Telomere repeats-binding bouquet formation protein 2 OS=Mus musculus OX=10090 GN=Terb2 PE=1 SV=1
+----------------------------------------MFQGQRGWFCGSVSQDLRQI
+WEDEGGMVS-DVKAADFLFSCDASHPDTLRIYQSLEYIEDNATVFHAYYLAAIANTE--M
+KNSVALGHFVLPPACLQK------------------------------------------
+--------------EIRRKIGSFIWEQDEKFQIEKHDRMASSDKENI----RPTP-E---
+---------------------------HKQEL---------------SKSA---------
+-----------------------E-HHLT--R--------TPVIEKQMCFPLHSYPVNNM
+VTGYISIDALEKFLGELHDFTPGSSGYLAYHIQDEINMSAIKNKLRRKLS---------
+>REF_TERB2_sp|Q8NHR7|TERB2_HUMAN Telomere repeats-binding bouquet formation protein 2 OS=Homo sapiens OX=9606 GN=TERB2 PE=1 SV=1
+----------------------------------------MFQGQRGWFCGSVSQDLRQF
+WVAEGGTIS-DPRAADFLFSCDASHPDTLRIYQSLDYIEDNATVFHAYYLSAVANAK--I
+KNSVALGHFILPPACLQK------------------------------------------
+--------------EIRRKIGSFIWEQDQHFLIEKHDEVTPNEIKTLRENSELAT-E---
+---------------------------HKKEL---------------SKSP---------
+-----------------------E-KHFI--R--------TPVVEKQMYFPLQNYPVNNM
+VTGYISIDAMKKFLGELHDFIPGTSGYLAYHVQNEINMSAIKNKLKRK-----------
+>human_NP_689661.1 telomere repeats-binding bouquet formation protein 2 [Homo sapiens]
+----------------------------------------MFQGQRGWFCGSVSQDLRQF
+WVAEGGTIS-DPRAADFLFSCDASHPDTLRIYQSLDYIEDNATVFHAYYLSAVANAK--I
+KNSVALGHFILPPACLQK------------------------------------------
+--------------EIRRKIGSFIWEQDQHFLIEKHDEVTPNEIKTLRENSELAT-E---
+---------------------------HKKEL---------------SKSP---------
+-----------------------E-KHFI--R--------TPVVEKQMYFPLQNYPVNNM
+VTGYISIDAMKKFLGELHDFIPGTSGYLAYHVQNEINMSAIKNKLKRK-----------
+>human_XP_011519542.1 telomere repeats-binding bouquet formation protein 2 isoform X1 [Homo sapiens]
+----------------------------------------MFQGQRGWFCGSVSQDLRQF
+WVAEGGTIS-DPRAADFLFSCDASHPDTLRIYQSLDYIEDNATVFHAYYLSAVANAK--I
+KNSVALGHFILPPACLQK------------------------------------------
+--------------EIRRKIGSFIWEQDQHFLIEKMEPRSVARVE---------------
+------------------------------------------------------------
+------------------------------------------------------------
+-----------------------------------------------------------
+>chicken_XP_015134565.1 LOW QUALITY PROTEIN: telomere repeats-binding bouquet formation protein 2 [Gallus gallus]
+----------------------------------------MFKGCQAWFSHSVQPGPRQL
+WVAGGGLLT-RWQDADYLFSSDAAHPDTRSIHESLEYLDGRATVFHSCYLSAWVNSSTAK
+QQPVALGHFVLPPACLQEGEGQC-PVPLLQEGDFLLLGAMPPPRGXGIGASLLRVQCCSV
+SCWAAFTLIFLLMAEIRKKIGRFLWEQMDDSLVEQPEENLSDEPETLSKECEQGAGE---
+---------------------------DAQNV---------------SESS---------
+-----------------------EGIRGS--R--------ASSQGEAPCHALQEYPINNM
+VTGYTSARDMRKYIGELHDFIPGTAGYTAYWVRNEISLHPDVKTNK-ILSNRQLFSAKP
+>Crasgiga_XP_034326377.1 telomere repeats-binding bouquet formation protein 2 isoform X1 [Crassostrea gigas]
+-----------------------------------MNNGKIFNGNTAWFSSSVSQKVKNL
+WKRNGGQMS-PLDSAMIIFSQDFTALDTLQIFSSEAYLDEHMAVIHPMYISDSVTKGSKT
+----VLMQYKLPPEEVYQ------------------------------------------
+---------------ATKDKQVYKWDRNSDLKNEQQQVR------TGRQTCRRAKL----
+---------------------------------------------CLDENTGN-----ES
+E-------------GAKTRRRQGPSYTDSENDSSV-----TMTTERQQS----AVVPREV
+PEDMCHIDDIPKITGVLEEFIPGKNGCEVFKK---------------------------
+>Crasgiga_XP_034326378.1 telomere repeats-binding bouquet formation protein 2 isoform X1 [Crassostrea gigas]
+-----------------------------------MNNGKIFNGNTAWFSSSVSQKVKNL
+WKRNGGQMS-PLDSAMIIFSQDFTALDTLQIFSSEAYLDEHMAVIHPMYISDSVTKGSKT
+----VLMQYKLPPEEVYQ------------------------------------------
+---------------ATKDKQVYKWDRNSDLKNEQQQVR------TGRQTCRRAKL----
+---------------------------------------------CLDENTGN-----ES
+E-------------GAKTRRRQGPSYTDSENDSSV-----TMTTERQQS----AVVPREV
+PEDMCHIDDIPKITGVLEEFIPGKNGCEVFKK---------------------------
+>orbicFav_XP_020630061.1 uncharacterized protein LOC110067110 [Orbicella faveolata]
+MGNFGVSSVRGYFNYVQLLCPWENGETRTKNAEMMFDEEQVFKGLLAWFSASVPTRLRSQ
+WVMNGGIQSNHFDDADYIFSSNASSKDTLRIFDSETYQKEELTIFHSSLIEDALTNGKSF
+LSGKHAGTYILIHPAYQKEIESFHKEQCLQSN-VKLT-----KN--EDGTESYPNTCRS-
+--YRDKFESFIRQQQIMEEVPSDEWDFGDDSNLHKKDFT------DARKQCKAIVQSERS
+NEMLHDSLPMNLNPAALKRLRAEHPPNREQELALLKYARNGASNCCLSESERKSFCENHS
+QNLMDHEREQDLYCGEYQRKLESAGFEGVEERESLLSDSQKATWETPKSHSL-SKFLGSM
+DDGFVHIDDIKLPESPIYDFIPNQNEC---------QVEPK------------------

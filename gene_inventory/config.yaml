@@ -1,0 +1,69 @@
+directory_of_queries: queries
+
+nr: /data/ncbi/db/nr
+
+keystone:
+  Hormtxome: /bigdata/make_txomes/pepfiles/final/CTE_Hormiphora_californensis_D914_T1.pep
+
+txomes:
+  #ctenos
+  mnemigen: /data/genomes/mnemiopsis/reannotation/ml2.3_prots.aa
+  Bathchun: /your/path/to/CTE_Bath_chun_SRR10276160_TRI.pep
+  Beroabys: /your/path/to/CTE_Bero_abys_SRR777787_TRI.pep
+  Berofors: /your/path/to/CTE_B_forskalii_D785-D11_TRI.pep
+  Berosp:   /your/path/to/CTE_Beroe_sp_SRR5892577_TRI.pep
+  Boliashl: /your/path/to/CTE_Boli_ashl_SRR5892570_TRI.pep
+  Boliinfu: /your/path/to/CTE_Boli_infu_SRR6074521_TRI.pep
+  Boliinf2: /your/path/to/CTE_Boli_infu_SRR786491_TRI.pep
+  Coelaste: /your/path/to/CTE_Coel_aste_SRR786490_TRI.pep
+  Coelmete: /your/path/to/CTE_Coel_mete_SRR3407215_TRI.pep
+  Dryoglan: /your/path/to/CTE_Dryo_glan_SRR777788_TRI.pep
+  Eurhvexi: /your/path/to/CTE_Eurh_vexi_SRR6074510_TRI.pep
+  Hormpalm: /your/path/to/CTE_Horm_palm_SRR6074513_TRI.pep
+  Hormsp:   /your/path/to/CTE_Horm_sp_SRR1992642_TRI.pep
+  Lamppanc: /your/path/to/CTE_Lamp_panc_SRR3407163_TRI.pep
+  Lampsp:   /your/path/to/CTE_Lamp_sp_SRR9162937_TRI.pep
+  Mertensp: /your/path/to/CTE_Mert_sp_SRR786492_TRI.pep
+  Ocyrcrys: /your/path/to/CTE_Ocyr_crys_SRR6074507_TRI.pep
+  Ocyrcry2: /your/path/to/CTE_Ocyr_crys_SRR6074508_TRI.pep
+  Pleupile: /your/path/to/CTE_Pleu_pile_SRR789901_TRI.pep
+  Pleusp:   /your/path/to/CTE_Pleu_sp_SRR5892573_TRI.pep
+  Vallmult: /your/path/to/CTE_Vall_mult_SRR3407164_TRI.pep
+  Vallmul2: /your/path/to/CTE_Vall_mult_SRR786489_TRI.pep
+  Vampdelm: /your/path/to/CTE_Vamp_delm_SRR9162936_TRI.pep
+  Bforgeno: /your/path/to/beroe/Beroe_forskalii_annotation/final/Beroe_av3_txome_prots.pep
+  Hormgeno: /your/path/to/hormiphora/annotation/hormiphora/annotation/Hcv1av87_release/Hcv1av87_model_proteins.pep
+  # bilaterians - deuterostomes
+  human: /your/path/to/protein_sets/GCF_000001405.39_GRCh38.p13_protein.faa
+  Branchios: /your/path/to/genome_heterozygosity_analyses/branchiostoma/genome/GCF_000003815.1_Version_2_protein.faa
+  chicken:   /your/path/to/genome_heterozygosity_analyses/chicken/genome/GCF_000002315.6_GRCg6a_protein.faa
+  # bilaterians - protostomes
+  Crasgiga: /your/path/to/genome_heterozygosity_analyses/crassostrea/genome/GCF_902806645.1_cgigas_uk_roslin_v1_protein.faa
+  drosophil: /your/path/to/genome_heterozygosity_analyses/drosophila/genome_gff/GCF_000001215.4_Release_6_plus_ISO1_MT_protein.faa
+  # cnidarians
+  rhopilema: /your/path/to/rhopilema/genome/pep.fasta
+  xenia: /your/path/to/genome_heterozygosity_analyses/xenia/genome_gff/paper_version/xenSp1.proteins.fa
+  enteroLeei: /your/path/to/protein_sets/GCA_001455295.2_ASM145529v2_protein_Enteromyxum_leei.faa
+  hydraVulg: /your/path/to/protein_sets/GCF_000004095.1_Hydra_vulgaris_RP_1.0_protein.faa
+  nematVect: /your/path/to/protein_sets/GCF_000209225.1_ASM20922v1_protein_Nema_vect.faa
+  acropDigi: /your/path/to/protein_sets/GCF_000222465.1_Adig_1.1_protein.faa
+  orbicFav:  /your/path/to/protein_sets/GCF_002042975.1_ofav_dov_v1_protein.faa
+  acropMil:  /your/path/to/protein_sets/GCF_004143615.1_amil_sf_1.1_protein.faa
+  dendrGig:  /your/path/to/protein_sets/GCF_004324835.1_DenGig_1.0_protein.faa
+  # trichoplax
+  hoilungia: /your/path/to/genome_heterozygosity_analyses/hoilungia/genome_gff/Hhon_BRAKER1_proteins.fasta
+  trichopla: /your/path/to/genome_heterozygosity_analyses/trichoplax/genome/GCF_000150275.1_v1.0_protein.faa
+  # sponges
+  amphIQuen: /your/path/to/protein_sets/GCF_000090795.1_v1.0_amph_quen_protein.faa
+  ephydatia: /your/path/to/genome_heterozygosity_analyses/ephydatia/genome_gff/Emu_v1_prots.fasta
+  tethya: /your/path/to/genome_heterozygosity_analyses/tethya/genome_gff/twilhelma_stringtie_transdecoder_proteins.fasta
+  # choanos
+  salpingoe: /your/path/to/genome_heterozygosity_analyses/salpingoeca/genome_gff/GCF_000188695.1_Proterospongia_sp_ATCC50818_protein.faa
+  monosiga:  /your/path/to/genome_heterozygosity_analyses/monosiga/genome_gff/GCF_000002865.3_V1.0_protein.faa
+  # HCO
+  capsowcz: /your/path/to/protein_sets/GCF_000151315.2_C_owczarzaki_V2_protein.faa
+  sphaarct: /your/path/to/protein_sets/GCF_001186125.1_Spha_arctica_JP610_V1_protein.faa
+  # fungi
+  neurospor: /your/path/to/genome_heterozygosity_analyses/neurospora/genome/GCF_000182925.2_NC12_protein.faa
+  saccharom: /your/path/to/protein_sets/GCF_000146045.2_R64_protein_YEAST.faa
+  schizosach: /your/path/to/protein_sets/GCF_000002945.1_ASM294v2_protein_schizosach.faa

@@ -1,0 +1,278 @@
+"""
+this blasts many query files against a set of transcriptomes or genome annotations
+
+then it aligns the hits
+"""
+configfile: "config.yaml"
+
+import os
+NUM_HITS = 2
+
+# first get all the query files
+config["query"] = {x.split("/")[-1].split(".")[0]: os.path.join(config["directory_of_queries"], x) \
+            for x in os.listdir(config["directory_of_queries"]) \
+            if x.split(".")[-1] in ["fasta", "fa", "faa", "pep"] }
+
+rule all:
+    input:
+        expand("blast_analysis/full_alignments/{query}_alignment.fasta",
+               query = config["query"])
+
+rule blast_against_keystone:
+    """
+    This just searches for the top five hits of the query proteins against the keystone species
+    """
+    input:
+        query = lambda wildcards: config["query"][wildcards.query],
+        db    = lambda wildcards: config["keystone"][wildcards.keystone]
+    output:
+        results = "blast_analysis/raw_blast_results/keystones/{keystone}/{query}.blastp"
+    threads: workflow.cores
+    params:
+        num_hits = NUM_HITS
+    shell:
+        """
+        blastp -query {input.query} -db {input.db} -outfmt 6 \
+             -num_threads {threads} | \
+             awk '{{ if ( ($11 + 0) <= 1E-10) {{ print($0) }} }}' | \
+             awk 'BEGIN{{prev=""}} \
+                {{if ($2 != prev){{ print($0) }}; prev=$2}}' | \
+             awk 'BEGIN{{ prev=""; counter=0 }} \
+                {{if (counter<{params.num_hits}){{print($0)}} \
+                else if ($1 != prev){{print($0); counter=0}}; \
+                prev=$1; counter+=1}}' > {output.results}
+        """
+
+rule blast_against_samples:
+    """
+    This first filters out the hits worse than 1E-10.
+    Then it just prints out the best hit for each query.
+    Then it picks the best five hits.
+    """
+    input:
+        query = lambda wildcards: config["query"][wildcards.query],
+        db    = lambda wildcards: config["txomes"][wildcards.sample]
+    output:
+        results = "blast_analysis/raw_blast_results/others/{sample}/{query}.blastp"
+    threads: workflow.cores
+    params:
+        num_hits = NUM_HITS
+    shell:
+        """
+        blastp -query {input.query} -db {input.db} -outfmt 6 \
+             -num_threads {threads} | \
+             awk '{{ if ( ($11 + 0) <= 1E-10) {{ print($0) }} }}' | \
+             awk 'BEGIN{{prev=""}} \
+                {{if ($2 != prev){{ print($0) }}; prev=$2}}' | \
+             awk 'BEGIN{{ prev=""; counter=0 }} \
+                {{if (counter<{params.num_hits}){{print($0)}} \
+                else if ($1 != prev){{print($0); counter=0}}; \
+                prev=$1; counter+=1}}' > {output.results}
+        """
+
+rule get_gene_list_of_blast_to_samples:
+    input:
+        results = "blast_analysis/raw_blast_results/others/{sample}/{query}.blastp"
+    output:
+        gene_list = "blast_analysis/gene_lists/others/{sample}/{query}.genes"
+    shell:
+        """
+        cut -f2 {input.results} | sort | uniq > {output.gene_list}
+        """
+
+rule get_gene_list_of_keystone:
+    input:
+        results = "blast_analysis/raw_blast_results/keystones/{keystone}/{query}.blastp"
+    output:
+        gene_list = "blast_analysis/gene_lists/keystones/{keystone}/{query}.genes"
+    shell:
+        """
+        cut -f2 {input.results} | sort | uniq > {output.gene_list}
+        """
+
+rule extract_keystone_proteins:
+    """
+    get the proteins from the keystone blast results
+    """
+    input:
+        gene_list = "blast_analysis/gene_lists/keystones/{keystone}/{query}.genes",
+        db    = lambda wildcards: config["keystone"][wildcards.keystone]
+    output:
+        proteins = "blast_analysis/proteins/keystones/{keystone}/{query}.pep"
+    shell:
+       """
+       seqtk subseq {input.db} {input.gene_list} > {output.proteins}
+       """
+
+rule extract_regular_proteins:
+    """
+    get the proteins from the normal blast results
+    """
+    input:
+        gene_list = "blast_analysis/gene_lists/others/{sample}/{query}.genes",
+        db    = lambda wildcards: config["txomes"][wildcards.sample]
+    output:
+        proteins = "blast_analysis/proteins/others/{sample}/{query}.pep",
+    shell:
+       """
+       seqtk subseq {input.db} {input.gene_list} > {output.proteins}
+       """
+
+rule blast_keystone_against_nr:
+    """
+    This takes the hits from the keystone and blasts them against nr.
+    It only takes the top hit from each hit from the keystone hits.
+    """
+    input:
+        query = "blast_analysis/proteins/keystones/{keystone}/{query}.pep"
+    output:
+        results = "blast_analysis/raw_blast_results/nrhits_from_keystones/{keystone}/{query}_to_nr.blastp"
+    threads: workflow.cores
+    params:
+        num_hits = 1,
+        nr = config["nr"]
+    shell:
+        """
+        if [ ! -s {input.query} ]
+        then
+            touch {output.results}
+        else
+            blastp -query {input.query} -db {params.nr} -outfmt 6 \
+                 -num_threads {threads} | \
+                 awk '{{ if ( ($11 + 0) <= 1E-10) {{ print($0) }} }}' | \
+                 awk 'BEGIN{{prev=""}} \
+                    {{if ($2 != prev){{ print($0) }}; prev=$2}}' | \
+                 awk 'BEGIN{{ prev=""; counter=0 }} \
+                    {{if (counter<{params.num_hits}){{print($0)}} \
+                    else if ($1 != prev){{print($0); counter=0}}; \
+                    prev=$1; counter+=1}}' > {output.results}
+        fi
+        """
+
+rule get_gene_list_of_nr:
+    input:
+        results = "blast_analysis/raw_blast_results/nrhits_from_keystones/{keystone}/{query}_to_nr.blastp"
+    output:
+        gene_list = "blast_analysis/gene_lists/nrhits_from_keystones/{keystone}/{query}_to_nr.genes"
+    shell:
+        """
+        cut -f2 {input.results} | sort | uniq > {output.gene_list}
+        """
+
+rule extract_prots_from_nr:
+    input:
+        gene_list = "blast_analysis/gene_lists/nrhits_from_keystones/{keystone}/{query}_to_nr.genes"
+    output:
+        proteins = "blast_analysis/proteins/nrhits_from_keystones/{keystone}/{query}_to_nr.pep"
+    params:
+        nr = config["nr"]
+    shell:
+        """
+        if [ ! -s {input.gene_list} ]
+        then
+            touch {output.proteins}
+        else
+            while IFS= read -r line
+            do
+               blastdbcmd -db {params.nr} -entry "${{line}}" >> {output.proteins}
+            done < {input.gene_list}
+        fi
+        """
+
+rule rename_proteins_query:
+    """
+    Adds "REF" to the beginning of all the sequences
+    """
+    input:
+        query = lambda wildcards: config["query"][wildcards.query],
+    output:
+        renamed = "blast_analysis/renamed/ref/{query}_renamed.fasta"
+    params:
+        query = lambda wildcards: wildcards.query
+    threads: 1
+    shell:
+        """
+        sed 's/>/>REF_{params.query}_/g' {input.query} > {output.renamed}
+        """
+
+rule rename_proteins_normal:
+    """
+    Adds the sample name to the beginning of all the sequences
+    """
+    input:
+        query = "blast_analysis/proteins/others/{sample}/{query}.pep"
+    output:
+        renamed = "blast_analysis/renamed/samples/{sample}/{query}_renamed.fasta"
+    params:
+        sample = lambda wildcards: wildcards.sample
+    threads: 1
+    shell:
+        """
+        sed 's/>/>{params.sample}_/g' {input.query} > {output.renamed}
+        """
+
+rule rename_proteins_keystone:
+    """
+    Adds the sample name to the beginning of all the sequences
+    """
+    input:
+        query = "blast_analysis/proteins/keystones/{keystone}/{query}.pep"
+    output:
+        renamed = "blast_analysis/renamed/keystones/{keystone}/{query}_renamed.fasta"
+    params:
+        keystone = lambda wildcards: wildcards.keystone
+    threads: 1
+    shell:
+        """
+        sed 's/>/>{params.keystone}_/g' {input.query} > {output.renamed}
+        """
+
+rule rename_proteins_nr:
+    """
+    Adds the sample name plus NR to the beginning of all the sequences
+    """
+    input:
+        query = "blast_analysis/proteins/nrhits_from_keystones/{keystone}/{query}_to_nr.pep"
+    output:
+        renamed = "blast_analysis/renamed/nrhits_from_keystones/{keystone}/{query}_renamed.fasta"
+    params:
+        keystone = lambda wildcards: wildcards.keystone
+    threads: 1
+    shell:
+        """
+        sed 's/>/>nr_from_{params.keystone}_/g' {input.query} > {output.renamed}
+        """
+
+rule combine_proteins_from_all_sources:
+    """
+    Now combine all of the proteins from all the blast hits
+    """
+    input:
+        query = "blast_analysis/renamed/ref/{query}_renamed.fasta",
+        normal = expand("blast_analysis/renamed/samples/{sample}/{{query}}_renamed.fasta", sample = config["txomes"]),
+        keystone = expand("blast_analysis/renamed/keystones/{keystone}/{{query}}_renamed.fasta", keystone = config["keystone"]),
+        nr = expand("blast_analysis/renamed/nrhits_from_keystones/{keystone}/{{query}}_renamed.fasta", keystone = config["keystone"])
+    output:
+        prots = "blast_analysis/prots_merged/{query}_hits.pep"
+    shell:
+        """
+        cat {input.query} {input.normal} {input.keystone} {input.nr} > {output.prots}
+        """
+
+rule align_proteins:
+    input:
+        prots = "blast_analysis/prots_merged/{query}_hits.pep"
+    output:
+        prots = "blast_analysis/full_alignments/{query}_alignment.fasta"
+    threads: workflow.cores
+    shell:
+        """
+        NUM_SEQS=$( grep '>' {input.prots} | wc -l )
+        if [ ${{NUM_SEQS}} -gt 1 ]
+        then
+            clustalo -i {input.prots} --full-iter \
+                --threads={threads} > {output.prots}
+        else
+            cat {input.prots} > {output.prots}
+        fi
+        """
