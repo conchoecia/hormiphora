@@ -23,8 +23,13 @@ Hcv1.av93
   - The transcripts, may contain prematurely truncated CDS sequences. See above for getting the final model proteins.
   - GFF of the transcripts.
 
+The actual annotation directory in the repo contains the files necessary to generate the current annotation version. The annotation can be reconstructed by running snakemake in that directory.
+
 ## [`supplemental_results`](https://github.com/conchoecia/hormiphora/tree/master/supplemental_results)
 
 - Contains directories with supplementary files for the following analyses:
   - `heterozygosity` contains files that were generated in the process of calculating the heterozygosity of the _H. californensis_ genome.
   - `intergenic_antisense` contains a Snakefile and config file used to investigate nested intronic genes. Also includes the data output for Hormiphora.
+  - `centromere_plots` contains an annotation of the repeats present in the genome, as well as a python file used to plot this in repeat frequency vs coordinate to look for repeat-rich regions, as well as the plots from this analysis.
+  - `pictures`
+    - `Hc2` contains pictures of the Hc2 _H. californensis_ individual
