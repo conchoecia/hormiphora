@@ -1,0 +1,175 @@
+configfile:"config.yaml"
+
+import pandas as pd
+
+ignore_list = ["GCF_000409795.2", "GCF_000517525.1", "GCF_000297895.1", "GCF_009870125.1", "GCF_003987935.1",
+               "GCF_000297895.1", "GCF_000691245.1", "GCF_001293395.1", "GCF_000151625.1",
+               "GCF_000738735.2", # exceeds length of chromosome
+               "GCF_004010815.1",  # exceeds length of chromosome
+               "GCF_002087225.1", #gff and annotation mismatch
+               "GCF_003719485.1", # gff and annotation mismatch
+               "GCF_003719475.1", #gff and annotation mismatch
+               "GCF_002102435.1", #exceeds length of chromosome
+              ]
+
+for entry in ignore_list:
+    if entry in config:
+        del config[entry]
+
+def read_number_from_file(filepath):
+    num = -1
+    with open(filepath, "r") as f:
+        for line in f:
+            if line.strip():
+                num = int(line.strip())
+                break
+    return num
+
+rule all:
+    input:
+        expand("genes_in_introns/{species}_genes_in_introns_{filt}.txt",
+               species=config, filt = ["iFilt", "noIFilt"]),
+        expand("genes_in_introns/report/genes_in_introns_report_{filt}.txt",
+               filt = ["iFilt", "noIFilt"]),
+        expand("genes_in_introns/counts/{species}_median_intron_size.txt", species=config)
+
+rule generate_genes_in_introns:
+    input:
+        gff    = lambda wildcards: config[wildcards.species]["gff"],
+        genome = lambda wildcards: config[wildcards.species]["genome"]
+    output:
+        genelist =     expand("genes_in_introns/{{species}}_genes_in_introns_{filt}.txt",
+                              filt = ["iFilt", "noIFilt"]),
+        genome_stats = expand("genes_in_introns/{{species}}_genome_stats_{filt}.txt",
+                              filt = ["iFilt", "noIFilt"]),
+        introns     = "genes_in_introns/{species}_introns.txt",
+        transcripts = "genes_in_introns/{species}_transcripts.txt"
+    params:
+        species = lambda wildcards: wildcards.species
+    threads: 1
+    shell:
+        """
+        python ~/git/chep/scripts/gff_to_intron_bed.py genes_in_introns/{params.species} {input.genome} {input.gff}
+        """
+
+rule get_median_intron_size:
+    input:
+        introns = "genes_in_introns/{species}_introns.txt",
+    output:
+        size = "genes_in_introns/counts/{species}_median_intron_size.txt",
+    shell:
+        """
+        awk '{{print($2-$1+1)}}' {input.introns} | sort -n | \
+            awk '{{count[NR]=$1}} END{{ if (NR % 2) {{ print(count[(NR + 1) / 2]) }} \
+                 else {{print( (count[(NR / 2)] + count[(NR / 2) + 1]) / 2.0 ) }} }}' > {output.size}
+        """
+
+rule get_median_num_introns_per_gene:
+    input:
+        transcripts = "genes_in_introns/{species}_transcripts.txt"
+    output:
+        size = "genes_in_introns/counts/{species}_median_num_introns_per_gene.txt",
+    shell:
+        """
+        cut -f6 {input.transcripts} | grep -v 'num_exons' | awk '{{print($1-1)}}' | sort -n | \
+            awk '{{count[NR]=$1}} END{{ if (NR % 2) {{ print(count[(NR + 1) / 2]) }} \
+                 else {{print( (count[(NR / 2)] + count[(NR / 2) + 1]) / 2.0 ) }} }}' > {output.size}
+        """
+
+rule generate_report:
+    input:
+        genelist = expand("genes_in_introns/{species}_genes_in_introns_{{filt}}.txt",
+                          species=config),
+        genome_stats = expand("genes_in_introns/{species}_genome_stats_{{filt}}.txt",
+                          species=config),
+        intron_size = expand("genes_in_introns/counts/{species}_median_intron_size.txt",
+                          species=config),
+        num_introns = expand("genes_in_introns/counts/{species}_median_num_introns_per_gene.txt",
+                          species=config)
+    output:
+        report = "genes_in_introns/report/genes_in_introns_report_{filt}.txt"
+    params:
+        filt = lambda wildcards: wildcards.filt
+    threads: 1
+    run:
+        list_to_df = []
+        for species in config:
+            print(species)
+            # first get basic info about the genome
+            genome_stats_file = "genes_in_introns/{}_genome_stats_{}.txt".format(species, params.filt)
+            exonic_size   = -1
+            intronic_size = -1
+            genome_size   = -1
+            intergenic_size = -1
+            num_sense_exon_in_intron_bp = -1
+            num_antisense_exon_in_intron_bp = -1
+            num_antisense_and_sense_exon_in_intron_bp = -1
+            host_bp = -1
+            hosted_bp = -1
+            try:
+                median_intron_length = read_number_from_file("genes_in_introns/counts/{}_median_intron_size.txt".format(species))
+            except:
+                median_intron_length = "NaN"
+            try:
+                median_num_introns_per_gene = read_number_from_file("genes_in_introns/counts/{}_median_num_introns_per_gene.txt".format(species))
+            except:
+                median_num_introns_per_gene = "NaN"
+            f = open(genome_stats_file, "r")
+            for line in f:
+                splitd = line.split()
+                if "wholeGenome_size" in line:
+                    genome_size = int(line.strip().split()[-1])
+                if splitd[0] == "exonic":
+                    exonic_size = int(line.strip().split()[1])
+                if splitd[0] == "intronic":
+                    intronic_size = int(line.strip().split()[1])
+                if splitd[0] == "intergenic":
+                    intergenic_size = int(line.strip().split()[1])
+                if "num_sense_exon_in_intron_bp" in line:
+                    num_sense_exon_in_intron_bp = int(line.strip().split()[1])
+                if "num_antisense_exon_in_intron_bp" in line:
+                    num_antisense_exon_in_intron_bp = int(line.strip().split()[1])
+                if "num_antisense_and_sense_exon_in_intron_bp" in line:
+                    num_antisense_and_sense_exon_in_intron_bp = int(line.strip().split()[1])
+                if "num_exonic_bp_breaks_splicing" in line:
+                    num_exonic_bp_breaks_splicing = int(line.strip().split()[1])
+                if "num_exonic_bp_doesnt_break_splicing" in line:
+                    num_exonic_bp_doesnt_break_splicing = int(line.strip().split()[1])
+                if "single_exon_sense_bp" in line:
+                    single_exon_sense_bp = int(line.strip().split()[1])
+                if "host_bp" in line:
+                    host_bp = int(line.strip().split()[1])
+                if "hosted_bp" in line:
+                    hosted_bp = int(line.strip().split()[1])
+            try:
+                per_single_exon_sense_bp = 100 * (single_exon_sense_bp/num_sense_exon_in_intron_bp)
+            except:
+                per_single_exon_sense_bp = "NaN"
+
+            f.close()
+            list_to_df.append({
+                "name": species,
+                "species": config[species]["species"],
+                "group":   config[species]["group"],
+                "genome_size": genome_size,
+                "exonic_size": exonic_size,
+                "intronic_size": intronic_size,
+                "intergenic_size": intergenic_size,
+                "num_sense_exon_in_intron_bp": num_sense_exon_in_intron_bp,
+                "num_antisense_exon_in_intron_bp": num_antisense_exon_in_intron_bp,
+                "num_antisense_and_sense_exon_in_intron_bp": num_antisense_and_sense_exon_in_intron_bp,
+                "per_sense_exon_in_intron": 100 * (num_sense_exon_in_intron_bp/exonic_size),
+                "per_antisense_exon_in_intron": 100 * (num_antisense_exon_in_intron_bp/exonic_size),
+                "per_antisense_and_sense_exon_in_intron": 100 * (num_antisense_and_sense_exon_in_intron_bp/exonic_size),
+                "num_exonic_bp_breaks_splicing": num_exonic_bp_breaks_splicing,
+                "num_exonic_bp_doesnt_break_splicing": num_exonic_bp_doesnt_break_splicing,
+                "single_exon_sense_bp": single_exon_sense_bp,
+                "per_single_exon_sense_bp": per_single_exon_sense_bp,
+                "host_bp": host_bp,
+                "hosted_bp": hosted_bp,
+                "median_intron_length": median_intron_length,
+                "median_num_introns_per_gene": median_num_introns_per_gene
+              })
+
+        df = pd.DataFrame.from_records(list_to_df)
+        df.to_csv(output.report, sep="\t", index = False)

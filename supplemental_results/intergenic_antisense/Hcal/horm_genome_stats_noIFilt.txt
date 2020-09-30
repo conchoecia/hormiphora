@@ -1,0 +1,17 @@
+# wholeGenome_size: 110691255
+region	num_bases	percent_of_total
+exonic	26790201	24.2026
+genic	83398428	75.3433
+intergenic	27292827	24.6567
+intronic	56608227	51.1406
+noncoding	83901054	75.7974
+intergenic_genic	110691255	100.0000
+intergenic_exonic_intronic	110691255	100.0000
+num_sense_exon_in_intron_bp	2101615	7.8447	(This is the percent of the exonic size)
+num_antisense_exon_in_intron_bp	3193317	11.9197	(This is the percent of the exonic size)
+num_antisense_and_sense_exon_in_intron_bp	5006371	18.6873	(This is the percent of the exonic size)
+num_exonic_bp_breaks_splicing	1380885	27.5826	(This is the percent of the exonic-inside-intron bp)
+num_exonic_bp_doesnt_break_splicing	3852344	76.9488	(This is the percent of the exonic-inside-intron bp)
+single_exon_sense_bp	752218	35.7924	(This is the percent of the total sense exonic bp)
+host_bp	3538242
+hosted_bp	5006371
