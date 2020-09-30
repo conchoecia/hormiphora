@@ -1,5 +1,7 @@
 # hormiphora
 
+![hormiphora image](supplemental_results/pictures/Misc/Horm_0720_small.JPG)
+
 This repo contains the code necessary to generate the annotation for the _Hormiphora californensis_ genome, the annotation as releases, and the code and results from the _H. californensis_ genome assembly paper.
 
 # Directory
@@ -10,7 +12,7 @@ This repo contains the code necessary to generate the annotation for the _Hormip
 
 ## [Annotation](https://github.com/conchoecia/hormiphora/tree/master/annotation)
 
-To download the latest annotation, navigate to the [releases](https://github.com/conchoecia/hormiphora/releases) page and download the `Hc[version]_release.tar.gz` file. The releases are editioned like so, and dot character, `.`, -delimited :
+To download the latest annotation, [navigate to the releases page and download the `Hc[version]_release.tar.gz` file](https://github.com/conchoecia/hormiphora/releases). The releases are editioned like so, and dot character, `.`, -delimited :
 
 ```
 Hcv1.av93
