@@ -4,6 +4,8 @@
 
 This repo contains the code necessary to generate the annotation for the _Hormiphora californensis_ genome, the annotation as releases, and the code and results from the _H. californensis_ genome assembly paper.
 
+This repo is maintained by Darrin T. Schultz and Warren R. Francis
+
 # Directory
 
 ## The assembly - Hcv1
