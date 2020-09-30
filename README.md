@@ -8,7 +8,7 @@ This repo contains the code necessary to generate the annotation for the _Hormip
 
 [Download the gzipped genome assembly fasta file here.](https://github.com/conchoecia/hormiphora/blob/master/annotation/raw_files/UCSC_Hcal_v1.fa.gz)
 
-## Annotation
+## [Annotation](https://github.com/conchoecia/hormiphora/tree/master/annotation)
 
 To download the latest annotation, navigate to the [releases](https://github.com/conchoecia/hormiphora/releases) page and download the `Hc[version]_release.tar.gz` file. The releases are editioned like so, and dot character, `.`, -delimited :
 
@@ -28,8 +28,17 @@ The actual annotation directory in the repo contains the files necessary to gene
 ## [`supplemental_results`](https://github.com/conchoecia/hormiphora/tree/master/supplemental_results)
 
 - Contains directories with supplementary files for the following analyses:
-  - `heterozygosity` contains files that were generated in the process of calculating the heterozygosity of the _H. californensis_ genome.
-  - `intergenic_antisense` contains a Snakefile and config file used to investigate nested intronic genes. Also includes the data output for Hormiphora.
-  - `centromere_plots` contains an annotation of the repeats present in the genome, as well as a python file used to plot this in repeat frequency vs coordinate to look for repeat-rich regions, as well as the plots from this analysis.
+  - [`heterozygosity`](https://github.com/conchoecia/hormiphora/tree/master/supplemental_results/heterozygosity) contains files that were generated in the process of calculating the heterozygosity of the _H. californensis_ genome.
+  - [`intergenic_antisense`](https://github.com/conchoecia/hormiphora/tree/master/supplemental_results/intergenic_antisense) contains a Snakefile and config file used to investigate nested intronic genes. Also includes the data output for Hormiphora.
+  - [`centromere_plots`](https://github.com/conchoecia/hormiphora/tree/master/supplemental_results/centrometere_plots) contains an annotation of the repeats present in the genome, as well as a python file used to plot this in repeat frequency vs coordinate to look for repeat-rich regions, as well as the plots from this analysis.
   - `pictures`
-    - `Hc2` contains pictures of the Hc2 _H. californensis_ individual
+    - [`Hc2`](https://github.com/conchoecia/hormiphora/tree/master/supplemental_results/pictures/Hc2) contains pictures of the Hc2 _H. californensis_ individual. It was collected with the [MBARI ROV Doc Ricketts](https://www.mbari.org/at-sea/vehicles/remotely-operated-vehicles/rov-doc-ricketts/)
+
+## [TADs](https://github.com/conchoecia/hormiphora/tree/master/TADs)
+
+This directory contains the TADs for _H. californensis_.
+
+## [Phased genome assembly](https://github.com/conchoecia/hormiphora/tree/master/phased_genome_assembly)
+
+Contains the whole genome assembly, converted into haplotype-specific fasta files using the phased VCF files.
+
