@@ -22,3 +22,9 @@ Hcv1.av93
   - Model proteins (use these for protein analyses - do not translate proteins from CDS sequences generated from the GFF file/assembly file.
   - The transcripts, may contain prematurely truncated CDS sequences. See above for getting the final model proteins.
   - GFF of the transcripts.
+
+## [`supplemental_results`](https://github.com/conchoecia/hormiphora/tree/master/supplemental_results)
+
+- Contains directories with supplementary files for the following analyses:
+  - `heterozygosity` contains files that were generated in the process of calculating the heterozygosity of the _H. californensis_ genome.
+  - `intergenic_antisense` contains a Snakefile and config file used to investigate nested intronic genes. Also includes the data output for Hormiphora.
