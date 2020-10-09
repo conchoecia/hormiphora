@@ -1,0 +1,104 @@
+>REF_MAJIN_sp|Q9D992|MAJIN_MOUSE Membrane-anchored junction protein OS=Mus musculus OX=10090 GN=Majin PE=1 SV=2
+--MSLKPFTY-PFPETRFLHAGPNVYKFKIRYGNSIRGE-------EIEDKEVIVQELED
+SIRAVLANMDSLQPFVTEHFIVFPYKSKWERVSHLKFKHGESILTPYPFVFTLYIEMKWF
+AEDLPSGKP--------ADDIPLELVLAETEAEEATMRKWKRKLMEEPSSPSRQGPHRAK
+MET------SSEASSNKKPLKES-KRSTDEEAQQEYQDTPASNAIAVKEQDAALGHGLQG
+LVVPPLQH-SSPPPPKEPGARGFLGF-LSALFPFRYFFKKSGQ-----------------
+------------------------------------------------------------
+-----------------------
+>REF_MAJIN_sp|Q3KP22|MAJIN_HUMAN Membrane-anchored junction protein OS=Homo sapiens OX=9606 GN=MAJIN PE=1 SV=2
+--MSLKPFTY-PFPETRFLHAGPNVYKFKIRYGKSIRGE-------EIENKEVITQELE-
+------------------------------------------------------------
+-------------------------VPVEKKAVGAVMRK--RKHMDEPSSPSRPGLDRAK
+IGT------SSQGPSKKKPPVET-RRNRERKTQQGLQETLASDITDVQKQDSEWGHSLPG
+RIVPPLQH-NSPP-PKERAATGFFGF-LSSLFPFRYFFRKSSHS----------------
+------------------------------------------------------------
+-----------------------
+>REF_MAJIN_sp|Q6AYM7|MAJIN_RAT Membrane-anchored junction protein OS=Rattus norvegicus OX=10116 GN=Majin PE=2 SV=1
+--MSLKPFTY-PFPETRFLHAGTNVYKFKIRYGNSIRGE-------EIEDKGVIIQELED
+SIRAVLANMDSLQPFVTEHFIVFPYKSKWERVSHLKFKHGEIILTPYPFVFTLYIEMKCF
+AESLPSGKP--------TDDIPLELVLTAKEAEEATMRK--RKLMEEPSTPSRPGPHRAK
+MET------WSEASSTKKALKEH-KRSWGEDSQ---QDTPASDSTAVTEQDPMLGHSLPG
+LVVPPLEH-SNPPPLKEPAARGFLGF-LSALFPFRYFFRKSTQ-----------------
+------------------------------------------------------------
+-----------------------
+>human_NP_001305737.1 membrane-anchored junction protein isoform 3 [Homo sapiens]
+------------------------------------------------------------
+--------------------------------------------------------MKWF
+HENLSPGKP--------ISDSPLGLVPVEKKAVGAVMRK--RKHMDEPSSPSRPGLDRAK
+IGT------SSQGPSKKKPPVET-RRNRERKTQQGLQETLASDITDVQKQDSEWGHSLPG
+RIVPPLQH-NSPP-PKERAATGFFGF-LSSLFPFRYFFRKSSHS----------------
+------------------------------------------------------------
+-----------------------
+>human_XP_005273975.1 membrane-anchored junction protein isoform X1 [Homo sapiens]
+--MSLKPFTY-PFPETRFLHAGPNVYKFKIRYGKSIRGE-------EIENKEVITQELED
+SVRVVLGNLDNLQPFATEHFIVFPYKSKWERVSHLKFKHGEIILIPYPFVFTLYVEMKWF
+HENLSPGKP--------ISDSPLGLVPVEKKAVGAVMRK--RKHMDEPSSPSRPGLDRAK
+IGT------SSQGPSKKKPPVET-RRNRERKTQQGLQETLASDITDVQKQDSEWGHSLPG
+RIVPPLQH-NSPP-PKERAATGFFGF-LSSLFPFRYFFRKSSHS----------------
+------------------------------------------------------------
+-----------------------
+>human_XP_024304215.1 membrane-anchored junction protein isoform X1 [Homo sapiens]
+--MSLKPFTY-PFPETRFLHAGPNVYKFKIRYGKSIRGE-------EIENKEVITQELED
+SVRVVLGNLDNLQPFATEHFIVFPYKSKWERVSHLKFKHGEIILIPYPFVFTLYVEMKWF
+HENLSPGKP--------ISDSPLGLVPVEKKAVGAVMRK--RKHMDEPSSPSRPGLDRAK
+IGT------SSQGPSKKKPPVET-RRNRERKTQQGLQETLASDITDVQKQDSEWGHSLPG
+RIVPPLQH-NSPP-PKERAATGFFGF-LSSLFPFRYFFRKSSHS----------------
+------------------------------------------------------------
+-----------------------
+>human_XP_024304216.1 membrane-anchored junction protein isoform X2 [Homo sapiens]
+------------------------------------------------------------
+--------------------------------------------------------MKWF
+HENLSPGKP--------ISDSPLGLVPVEKKAVGAVMRK--RKHMDEPSSPSRPGLDRAK
+IGT------SSQGPSKKKPPVET-RRNRERKTQQGLQETLASDITDVQKQDSEWGHSLPG
+RIVPPLQH-NSPP-PKERAATGFFGF-LSSLFPFRYFFRKSSHS----------------
+------------------------------------------------------------
+-----------------------
+>Branchios_XP_002606604.1 hypothetical protein BRAFLDRAFT_120106 [Branchiostoma floridae]
+-MSKLETFKL-PNQDTRLIKCNNTVYKFKLQYRDGSNRL----P----CDVATMQQEMEN
+VVRCLLQMKEDLHPVRTDHFVIYPYKRSWGTAGKLKFYQGQTELQAYPYVLYVYVEPTCK
+VQAQAQKCSS---------DPTFPAVGD---GDDDKN----EEVHEGRETHRRHKPKLTQ
+ADI-HEVLNTEFGHVFTPPPKKVKRKHIRQNNVKE--RHPT------AQEPEAIGQNKER
+PVTPPEGIPPGPIPPAEEMPPGPSSVPTRSTSRKAYRLGRRHRSVDTPISGRPRRVLLHS
+RPDRHAIESFQLSEQQRLQQLACPTAPGVACPTAPGVACDTSPGGDLPEDTQPDQAQEKS
+VVGSFLRMLIHPARQLFSGQDTS
+>hydraVulg_XP_012563853.1 PREDICTED: uncharacterized protein LOC105848331 [Hydra vulgaris]
+MTCSLSDFKL-PDPDVRLVMFGDTVYKVKLLFRSAQHNGIASADSHNIFNDDKVQYDIER
+VMKYVLYNPDRIDPIHTDDLVIYPYKKIWSNSKKLQFSKYDVKLNTSPYLFMFYIEKKVD
+STTEKS--S----------KFQFSKVSQEDDGVEEPN----RESNCNREL------QIKS
+IDSQHGYVS-SFLSYIKAPWKSIGKRFWLSS-----------------------------
+------------------------------------------------------------
+------------------------------------------------------------
+-----------------------
+>acropDigi_XP_015763651.1 PREDICTED: membrane-anchored junction protein-like isoform X1 [Acropora digitifera]
+--MPLQHFTFDKKPDIRLVVYGHTVYKIKVTCRQSSNRE----SIRKLCKEEKNHKDLER
+-VVCAILNSDVLVPVQTDCFVVYPYKTHWETSDKVLFSQHGKALDAHPYAFTMYVEERQT
+VPKHLNHSE-------QTDEPTESGVTA---GGER--------IVTGYGQKNRH--EVEE
+KDL-KEFLRL--------------------QQMA--------------SEEDEDTDDSEQ
+---------------CEEHPSGLQRVFNALVSPVRSFLGH--------------------
+------------------------------------------------------------
+-----------------------
+>orbicFav_XP_020615173.1 membrane-anchored junction protein-like [Orbicella faveolata]
+--MPLKPFTFDRKPDIRLVVYGKTVYKIKVICRKSSDRE----SIRKLCSEEKNNKDLER
+-VICAILNTYELVPVKTDNFVVYPYKNHWETRDRVLFSQNGQPLDAHRYAFTLYVEVKEA
+ITNHSQNTKTGRVQGKQIDEEAIS--GG---VEER--------VVTEYGQKNRH--DVEE
+KDL-KEFLRL--------------------QKLA--------------SEDDEQRDDMED
+---------------A-AGTSGLQKVFNALVSPVRSFLGH--------------------
+------------------------------------------------------------
+-----------------------
+>acropMil_XP_029199377.1 membrane-anchored junction protein-like isoform X1 [Acropora millepora]
+--MPLQHFTFDKKPDIRLVVYGHTVYKIKVTCRQSSNRE----SIRKLCKEEKNHKDLER
+-VVCAILNSDVLMPVQTDCFVVYPYKTHWETSDKVLFSQHGKALDAHPYAFTMYVEERQT
+VPKHLNHSE-------QIDEPTKSGVTA---GGER--------IVTGYGQKNRH--EVEE
+KDL-KEFLRL--------------------QQMA--------------SEEDEDTDDSEQ
+---------------CEEHPSGLQRVFNALVSPVRSFLGQ--------------------
+------------------------------------------------------------
+-----------------------
+>acropMil_XP_029199379.1 membrane-anchored junction protein-like isoform X3 [Acropora millepora]
+--MPLQHFTFDKKPDIRLVVYGHTVYKIKVTCRQSSNRE----SIRKLCKEEKNHKDLER
+-VVCAILNSDVLMPVQTDCFVVYPYKTHWETSDKVLFSQHGKALDAHPYAFTMYVEERQT
+VPKHLNHSE-------QIDEPTKSGVTA---GGER--------IVTGYGQKNRH--EVEE
+KDL-KEFLRL--------------------QQMA--------------SEEDEDTDVL-W
+---------------CPP------------------------------------------
+------------------------------------------------------------
+-----------------------
